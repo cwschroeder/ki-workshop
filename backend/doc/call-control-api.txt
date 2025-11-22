@@ -1,0 +1,427 @@
+Call Control API Spec
+Table of Contents
+Call Control API Spezifikation
+BRIDGE Block
+SEQUENTIAL BRIDGE Beispiel
+PARALLEL BRIDGE Beispiel
+ANNOUNCEMENT Block
+ANNOUNCEMENT Beispiel
+SAY Block
+SAY Beispiel
+ROUTINGPLAN Block
+ROUTINGPLAN Beispiel
+COLLECT_DIGITS Block
+COLLECT_DIGITS Beispiel
+COLLECT_SPEECH Block
+COLLECT_SPEECH Beispiel
+HANGUP Block
+HANGUP Beispiel
+CALL SETTINGS Block
+CALL_SETTINGS Beispiel
+REFER Block
+REFER Block Beispiel
+Call Control API Spezifikation
+Hier finden Sie die spezifischen Attribute und Beispiele zu jedem Blocktyp.
+BRIDGE Block | Anrufweiterleitung auf Zielnummern, SIP-Accounts oder SIP-Trunks
+ANNOUNCEMENT Block | Abspielen einer Ansage
+SAY Block | Ansage mit Text-To-Speech Funktion abspielen
+ROUTINGPLAN Block | Routingpläne dynamisch einbinden
+COLLECT DIGITS Block | Erfassung von Tasteneingaben per DTMF
+COLLECT SPEECH Block | Spracherkennung per ASR
+HANGUP Block | Beenden eines Calls
+CALL SETTINGS Block | Ändern von Anrufparametern
+REFER Block | SIP-Trunk Call Handling
+BRIDGE Block
+Initiiert die Weiterleitung des Anrufs an eine externe Zielnummer, einen SIP-Account oder SIP-Trunk.
+
+bridgeMode	Hat den Wert SEQUENTIAL oder PARALLEL . Das Ziel bzw. die Zeile werden sequentiell (nacheinander, jeweils mit individuellem timeout), oder parallel (mit einem block timeout welches für alle Ziele gilt) angerufen
+destinations	Eine Liste von Zielen. Jedes Ziel besteht aus:
+einem „destinationType“ Attribut:
+EXTERNALNUMBER
+SIP_USER
+oder SIP_TRUNK
+einem „destination“ Attribut (eine Zeichenkette)
+bei EXTERNALNUMBER, muss eine Rufnummer im internationalen Format „+….“, ohne Leer- oder Sonderzeichen angegeben werden, z.B. „+49221987654321“
+bei SIP_USER, muss der Benutzername eines „SIP-Accounts“ angegeben werden der im TENIOS-Kundenportal konfiguriert wurde
+bei SIP_TRUNK, muss der Name eines SIP-Trunks angegeben werden welcher im TENIOS-Kundenportal unter dem Menüpunkt „SIP Trunks“ konfiguriert wurde.
+ein „timeout“ Attribut (Nur im Modus SEQUENTIAL )
+SEQUENTIAL BRIDGE Beispiel
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "BRIDGE",
+         "destinations": [
+            {
+               "destination": "1001",
+               "destinationType": "SIP_USER",
+               "timeout": 25
+            },
+            {
+               "destination": "+4978787878",
+               "destinationType": "EXTERNALNUMBER",
+               "timeout": 30
+            }
+         ],
+         "bridgeMode": "SEQUENTIAL"
+      }
+   ]
+}
+PARALLEL BRIDGE Beispiel
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "BRIDGE",
+         "blockTimeout": 50,
+         "destinations": [
+            {
+               "destination": "1001",
+               "destinationType": "SIP_USER"
+            },
+            {
+               "destination": "+4978787878",
+               "destinationType": "EXTERNALNUMBER"
+            }
+         ],
+         "bridgeMode": "PARALLEL"
+      }
+   ]
+}
+ANNOUNCEMENT Block
+Mit dieser Funktion werden Ansagen abgespielt, welche zuvor im TENIOS-Kundenportal hochgeladen wurden.
+
+standardAnnouncement	true or false
+true um eine Standard-Ansage (von TENIOS zur Verfügung gestellt) zu nutzen
+false um eine Ansage die von Ihnen über das TENIOS-Kundenportal hochgeladen wurde.
+announcementName	Der Name der Ansage.Verwenden Sie das TENIOS-Kundenportal um sich die unter Ihrem Konto verfügbaren Ansagen anzeigen zu lassen.
+ANNOUNCEMENT Beispiel
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "ANNOUNCEMENT",
+         "standardAnnouncement": false,
+         "announcementName": "MySpecialAnnouncement"
+      }
+   ]
+}
+SAY Block
+Hierbei übermittelt das kundenseitige System einen Text. TENIOS konvertiert den Text in eine Audiodatei und spielt diese ab. Die Konvertierung erfolgt mittels der Text-to-Speech Cloud-Dienste von Google, Amazon oder Microsoft.
+
+text	Ein Text, der in Sprache umgewandelt werden soll.
+voiceName	Der Name der Stimme die für die Generierung der Sprache verwendet werden soll. Die Syntax sieht dabei wie folgt aus: <Sprache>.<Geschlecht>.<n> Sie können aus folgenden Sprachen auswählen: en, en-au, en-gb, de, da, nl, fr, it, ja, ko, nb, pl, pt, ro, ru, es, sv, th, tr Geschlecht gibt an, ob die Stimme männlich (male) oder weiblich (female) ist. n gibt die Nummer der Stimmvariante an. Je nach Sprache und Geschlecht stehen unterschiedlich viele Stimmvarianten zur Verfügung. Beispiele: de.female.1, de.male.1 Liste aller verfügbarer Sprachen: en.female.1)*, en.female.2, en.female.3)*, en.male.2, de.female.1, de.female.2)*, de.female.3, de.female.4, de.female.5, de.female.6 (Swiss), de.male.1 de.male.2, de.male.3, de.male.4, a.male.1, a.female.1, nl.female.1, nl.female.2, nl.male.1, en-gb.female.1, en-gb.female.2, en-gb.male.1, en-gb.male.2, fr.female.1, fr.female.2, fr.female.3, fr.female.4 (Swiss), fr.male.1, fr.male.2, fr.male.3, it.female.1, it.female.2, polly.carla, it.male.1, ja.female.1, ja.female.2, ja.male.1, ko.female.1, ko.female.2, nb.female.1, pl.female.1, pl.male.1, pt.female.1, pt.male.1, ro.female.1, ru.female.1, ru.male.1, es.female.1, es.female.2, es.male.1, sv.female.1, sv.female.2, tr.female.1, tr.female.2, hi.female.1
+useSsml	true oder false SSML kann verwendet werden, um die Sprachgenerierung durch Einfügen spezieller Tags zu verbessern. Die vollständige SSML-Spezifikation finden Sie hier. Für einen einfacheren Einstieg empfehlen wir die SSML-Dokumentation auf Amazon Bitte beachten Sie, dass TENIOS Amazon-spezifische Tags nicht unterstützt. Umschließen Sie den Text nicht mit einem <speak>-Tag! Dieser wird automatisch von unserem System hinzugefügt.
+* Stimmen mit einer höheren Qualität
+#
+SAY Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "SAY",
+         "text": "Hello, how are you doing?",
+         "voiceName": "de.female.3",
+         "useSsml": false
+      }
+   ]
+}
+#
+ROUTINGPLAN Block #
+Diese Funktion kann verwendet werden, um zuvor im TENIOS-Kundenportal definierte Routingpläne im Call-Flow einzubinden.
+
+routingplanName	Der Name des Routingplans. Bitte verwenden Sie das TENIOS-Kundenportal um den Routingplan einzurichten, bzw. nachzusehen. Verwenden Sie die genaue Schreibweise incl. Groß- und Kleinschreibung wie sie im TENIOS-Kundenportal verwendet wird.
+#
+ROUTINGPLAN Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "ROUTINGPLAN",
+         "routingplanName": "MySpecialRouting"
+      }
+   ]
+}
+COLLECT_DIGITS Block #
+Dieser Block wird verwendet, um Zifferneingaben per Tastatureingabe (DTMF) oder Spracheingabe abzufragen. Im Routing-Block wird der Anrufer aufgefordert, die Ziffern per DTMF oder alternativ per Sprache einzugeben. Die eingegebene Ziffernfolge wird in einer Variablen gespeichert, die in den nächsten Requests an das Kundensystem übermittelt wird und dort ausgewertet werden kann.
+
+ 
+
+standardAnnouncement	true oder false
+true um eine Standard Ansage (von TENIOS zur Verfügung gestellt) zu nutzen.
+false um eine Ansage die von Ihnen über das TENIOS-Kundenportal hochgeladen wurde.
+announcementName	Der Name der Ansage. Verwenden Sie das TENIOS-Kundenportal um sich die unter Ihrem Konto verfügbaren Ansagen anzeigen zu lassen.
+standardErrorAnnouncement	true oder false. Gibt an ob das folgende errorAnnouncementName“ eine Standard-Ansage ist oder nicht.
+errorAnnouncementName	Der Name der Ansage die bei einem Fehler abgespielt wird. Wie beim Parameter announcementName“ können auch hier alle im TENIOS-Kundenportal zur Verfügung stehenden standardMissingInputAnnouncement
+variableName	Der Name der Variablen in der die Zifferneingabe gespeichert werden soll. Es sind nur alphanumerische Kleinbuchstaben und „_“ Zeichen erlaubt.
+minDigits	Die minimale Anzahl an Ziffern, die über DTMF eingegeben werden dürfen. Sie können zwischen 1 und 32 Ziffern zulassen.
+maxDigits	Die maximale Anzahl an Ziffern, die über DTMF eingegeben werden dürfen Sie können zwischen 1 und 32 Ziffern zulassen.
+terminator	Zeichen, um die DTMF-Eingabe zu beenden. Es kann * oder # benutzt werden.
+maxTries	Die maximale Anzahl von Versuchen bei ungültiger oder fehlender DTMF-Eingabe Sie können bis zu 10 Versuche zulassen.
+timeout	Timeout (in Sekunden) pro Versuch Das maximale Timeout beträgt 300 Sekunden. (Bitte verwechseln Sie dies nicht mit dem Parameter blockTimeout einiger anderer Blöcke.)
+allowSpeechInput Optional	true or false (Standard ist false) Ermöglicht die Erkennung von Spracheingaben zusätzlich zur Erkennung von DTMF-Eingaben. Bitte beachten Sie, dass sobald eine DTMF-Eingabe gemacht wurde, die Spracherkennung nicht mehr aktiv ist.
+asrProvider Optional	Anbieter für die automatische Spracherkennung (Standard ist „GOOGLE“). Sie können entweder „GOOGLE“, „MICROSOFT“ oder „OPENAI“ auswählen.
+language Optional	Die Sprache der zu erkennenden Spracheingabe. Diese muss im Format „xx-YY“ angegeben werden, wobei xx ein aus zwei Buchstaben bestehender Sprachcode (ISO 639), und YY ein aus zwei Buchstaben bestehender Ländercode (ISO 3166) ist. Beispiele: „en-GB“ für Englisch (Großbritannien), oder „de-DE“ für Deutsch (Deutschland). Es werden nicht alle Sprache/Ländercode Kombinationen unterstützt. Die folgenden Sprachen werden derzeit unterstützt: ar-AE, ar-BH, ar-DZ, ar-EG, ar-IL, ar-IQ, ar-JO, ar-KW, ar-LB, ar-MA, ar-OM, ar-PS, ar-QA, ar-SA, ar-TN, bg-BG, ca-ES, cs-CZ, da-DK, de-DE, de-CH (Swiss), el-GR, en-AU, en-CA, en-GB, en-GH, es-CR, es-DO, es-EC, es-ES, es-GT, es-HN, es-MX, es-NI, es-PA, es-PE, es-PR, es-PY, es-SV, es-US, es-UY, es-VE, fi-FI, fr-CA, fr-FR, fr-CH (Swiss), he-IL, hi-IN, hr-HR, hu-HU, id-ID, is-IS, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, ms-MY, nl-NL, pl-PL, pt-BR, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN
+alternativeLanguages Optional	Eine Liste alternativer Sprachcodes Siehe COLLECT_SPEECH Block
+COLLECT_DIGITS Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "COLLECT_DIGITS",
+         "standardAnnouncement": false,
+         "announcementName": "MySpecialAnnouncement",
+         "standardErrorAnnouncement": false,
+         "errorAnnouncementName": "MySpecialErrorAnnouncement",
+         "variableName": "my_var",
+         "allowSpeechInput": true,
+         "asrProvider": "GOOGLE",
+         "language": "de-DE",
+         "minDigits": 1,
+         "maxDigits": 5,
+         "terminator": "#",
+         "maxTries": 3,
+         "timeout": 10
+      }
+   ]
+}
+COLLECT_SPEECH Block #
+Mit Hilfe dieses Blocks kann Sprache erkannt werden und als Text in einer Variablen gespeichert werden. Im Routing-Block wird der Anrufer aufgefordert, sein Anliegen / seine Information als Sprache wiederzugeben. Die Erkennung der Spracheingabe erfolgt über die Speech-to-Text (ASR – Automatic Speech Recognition) Cloud-Dienste von Google oder Microsoft. Der erkannte Text wird wird in einer Variablen gespeichert die in den folgenden Requests an das Kundensystem übermittelt werden.
+
+standardAnnouncement	true or false
+true um eine Standard Ansage (von TENIOS zur Verfügung gesellt) zu nutzen.
+false um eine Ansage die von Ihnen über das TENIOS-Kundenportal hochgeladen wurde.
+ 
+
+announcementName Optional	Der Name der Ansage. Verwenden Sie das TENIOS-Kundenportal um sich die unter Ihrem Konto verfügbaren Ansagen anzeigen zu lassen. Darf nur gesetzt werden, wenn die TTS Funktion mit Parametern „text“, „missingInputText“, „voiceName“, und „useSsml“ nicht verwendet wird.
+standardMissingInputAnnouncement Optional	true oder false Gibt an, ob es sich beim folgenden Parameter missingInputAnnouncementName um eine Standard-Ansage handelt oder nicht. Nur in Zusammenhang mit „announcementName“ gesetzt werden.
+missingInputAnnouncementName Optional	Der Name der Ansage die abgespielt werden soll, wenn keine Spracheingabe erkannt wird. Es können wie beim Parameter standardAnnouncement alle im TENIOS-Kundenportal verfügbaren Ansagen verwendet werden. Nur in Zusammenhang mit „announcementName“ gesetzt werden.
+text Optional	Ein Text, der in Sprache umgewandelt werden soll. (Text-to-Speech / TTS Funktion). Falls TTS genutzt werde soll, „announcementName“, „standardMissingInputAnnouncement“ und „missingInputAnnouncementName“ im json-Request entfernen. Ansonsten gibt es eine Fehlermeldung.
+missingInputText Optional	Der Text (TTS) welche abgespielt werden soll, wenn keine Spracheingabe erkannt wird. Darf nur gesetzt werden, wenn TTS anstelle „announcementName“.
+voiceName Optional	Der Name der Stimme die für die Generierung der Sprache verwendet werden soll. Die Syntax sieht dabei wie folgt aus: <Sprache>.<Geschlecht>.<n> Darf nur gesetzt werden, wenn TTS anstelle „announcementName“. siehe SAY-Block
+useSsml Optional	true oder false SSML kann verwendet werden, um die Sprachgenerierung durch Einfügen spezieller Tags zu verbessern. Darf nur gesetzt werden, wenn TTS anstelle „announcementName“. siehe SAY-Block
+asrProvider	Anbieter für die automatische Spracherkennung (Standard ist „GOOGLE“). Sie können entweder „GOOGLE“, „MICROSOFT“ oder „OPENAI“auswählen.
+asrProviderConfigurationName Optional	Der Name einer Ihrer ASR-Provider-Konfigurationen. Dies ist eine erweiterte Option. Falls angegeben, wird anstelle unserer integrierten ASR-Provider-Setup eine ASR-Provider-Konfiguration verwendet, die Sie im TENIOS-Kundenportal definiert haben. Bitte beachten Sie:
+Diese Option kann NICHT zusammen mit der Option dataType verwendet werden.
+der Name/Typ der ASR-Provider-Konfiguration ( GOOGLE, MICROSOFT oder OPENAI) muss mit der Option asrProvider übereinstimmen.
+language	Die Sprache der zu erkennenden Spracheingabe. Diese muss im Format „xx-YY“ angegeben werden, wobei xx ein aus zwei Buchstaben bestehender Sprachcode ist (ISO 639), und YY ein aus zwei Buchstaben bestehender Ländercode (ISO 3166). Beispiele: „en-GB“ für Englisch (Großbritannien), oder „de-DE“ für Deutsch (Deutschland). Es werden nicht alle Sprache/Ländercode Kombinationen unterstützt. Die folgenden Sprachen werden derzeit unterstützt: ar-AE, ar-BH, ar-DZ, ar-EG, ar-IL, ar-IQ, ar-JO, ar-KW, ar-LB, ar-MA, ar-OM, ar-PS, ar-QA, ar-SA, ar-TN, bg-BG, ca-ES, cs-CZ, da-DK, de-DE, de-CH (Swiss), el-GR, en-AU, en-CA, en-GB, en-GH, es-CR, es-DO, es-EC, es-ES, es-GT, es-HN, es-MX, es-NI, es-PA, es-PE, es-PR, es-PY, es-SV, es-US, es-UY, es-VE, fi-FI, fr-CA, fr-FR, fr-CH (Swiss), he-IL, hi-IN, hr-HR, hu-HU, id-ID, is-IS, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, ms-MY, nl-NL, pl-PL, pt-BR, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN
+alternativeLanguages Optional	Eine Liste alternativer Sprachen die als Codes im Format „xx-YY“ angegeben werden um die Spacherkennung zu verbessern, siehe Parameter language. Hinweis: Diese Funktion wird derzeit nicht unterstützt, wenn der Parameter asrProvider auf den Wert MICROSOFT gesetzt ist. Beachten Sie auch, dass GOOGLE derzeit maximal 3 alternative Sprachen zulässt.
+variableName	Der Name der Variablen in der der erkannte Text gespeichert werden soll. Nur alphanumerische Kleinbuchstaben und „_“ Zeichen sind erlaubt. Der Wert der COLLECTED-Variablen steht in nachfolgenden externen Requests der Anrufsteuerung (sowie anderen externen Anfragen) zur Verfügung, die mit dem Präfix „collected_“ versehen sind. Wenn also Ihr Variablenname „my_var“ ist, dann ist er unter dem Namen „collected_my_var“ verfügbar.
+datatype Optional	Der Name des Datentyps datatype ermöglicht die Angabe eines bestimmten zu erwarteten Datentyps, der verwendet werden soll. Die Liste kann in Zukunft erweitert werden. Derzeit sind die folgende Werte zulässig:
+datatype-address
+datatype-number
+datatype-any
+datatype-person
+datatype-last-name
+datatype-given-name
+datatype-date-time
+datatype-date
+datatype-time
+datatype-email
+datatype-phone-number
+datatype-language
+datatype-yesno
+Bitte beachten Sie: Wenn ein Datentyp angegeben ist, hat die Einstellung von asrProvider keine Auswirkung. Auch das Setzen von audioPushUrl hat keine Auswirkung, da die Audiodatei nicht verfügbar ist, wenn der Parameter datatype eingestellt ist.
+
+maxTries	Die maximale Anzahl von Wiederholungen wenn keine Sprache erkannt wird. Es können bis zu 10 Wiederholungen gesetzt werden.
+keywordHints Optional	Eine Liste von Zeichenketten, die Wörter und Phrasen als „Hinweise“ enthält, um die Erkennungsgenauigkeit zu erhöhen. Diese werden dann an die Google API übergeben (siehe SpeechContext)
+timeout Optional	Die maximale Zeit für die Aufnahme, diese kann maximal 59s betragen. Es handelt sich hier um die maximale Aufzeichnungszeit, wenn der Anrufer nichts mehr sagt und „Stille“ erkannt wird, kann die Aufzeichnung früher abgebrochen werden.
+audioPushUrl Optional	Eine URL an die die für die Spracherkennung aufgezeichnete Audiodatei gepostet werden soll. Die Datei wird mit dem Content-Type „audio/wav“ im WAV-Format übergeben. Es werden nur URLs mit dem HTTPS-Protokoll unterstützt. Der Parameter hat keine Auswirkung, wenn auch der Parameter datatype gesetzt ist, da in diesem Fall die Audiodatei nicht zur Verfügung steht.
+asrStart Optional	Die ASR Funktion startet im Standardfall nach Ende der abzuspielenden Ansage. Mit diesem Parameter können Sie das Recording für die ASR Funktion vor Ende der Ansage aktivieren. Wählen Sie den Parameter „END_OF_OUTPUT“, um die ASR vor Ende der Ansage zu starten. Mit „BEGINNING_OF_OUTPUT“ wählen Sie den Start der ASR nach Beginn der Ansage.
+asrStartOffsetMs Optional	Definiert den Wert in ms wann das Recording für die ASR Funktion aktiviert werden soll. Wenn Sie „END_OF_OUTPUT“ gewählt haben tragen Sie bspw. -500 ein. Die ASR startet 500ms bevor die Ansage endet. Bei „BEGINNING_OF_OUTPUT“ wählen Sie bspw. 3000, so dass die ASR 3 Sekunden nach Beginn der Ansage startet.
+eventUrl Optional	Eine URL an die Events gepostet werden sollen die während der Ausführung des COLLECT_SPEECH Blocks auftreten. Momentan sind nur DTMF-Events implementiert, die erzeugt werden sobald eine Eingabe über die Telefontastatur erfolgt.
+COLLECT_SPEECH Beispiel #
+HTTP Status Code: 200 (OK)
+
+{ 
+  "blocks" : [ 
+     { 
+        "blockType": "COLLECT_SPEECH", 
+        "standardAnnouncement": false, 
+        "announcementName": "MySpecialAnnouncement", 
+        "standardMissingInputAnnouncement": false, 
+        "missingInputAnnouncementName": "MySpecialMissingInputAnnouncement", 
+        "text": "Hello, how are you doing?", 
+        "missingInputText": "Sorry, can you please repeat?",
+        "voiceName": "en.female.3", 
+        "useSsml": false, 
+        "asrProvider":"GOOGLE", 
+        "asrProviderConfigurationName": "MYASRprovider", 
+        "language": "de-DE", 
+        "alternativeLanguages": ["en-US","fr-FR"], 
+        "variableName": "myvar", 
+        "datatype": "datatype-address", 
+        "maxTries": 3, 
+        "keywordHints": [ "word1", "word2" ],
+        "audioPushUrl": "https://mein_collect-speech_service.de",
+        "asrStart": "END_OF_OUTPUT" or "BEGINNING_OF_OUTPUT", 
+        "asrStartOffsetMs": -500 or 3000 
+     }
+  ] 
+}
+HANGUP Block #
+Dieser Block wird verwendet, um den Anruf zu beenden.
+
+hangupCause	In der folgenden Liste werden die möglichen Auflegegründe detailliert beschrieben:
+UNALLOCATED_NUMBER: Diese Ursache weist darauf hin, dass der angerufene Teilnehmer nicht erreicht werden kann, da die Nummer des angerufenen Teilnehmers zwar in einem gültigen Format vorliegt, aber ist derzeit nicht zugewiesen.
+NO_ROUTE_TRANSIT_NET: Diese Ursache weist darauf hin, dass das Gerät, das diese Ursache sendet, eine Anforderung zum Weiterleiten des Anrufs über ein bestimmtes Transitnetz erhalten hat, die es nicht erkennt. Das Gerät, das diese Ursache sendet, erkennt entweder das Transitnetz nicht oder dieses bestimmte Transitnetzwerk (obwohl vorhanden) nicht das Gerät bedient, das diese Ursache sendet.
+NO_ROUTE_DESTINATION: Diese Ursache weist darauf hin, dass der angerufene Teilnehmer nicht erreicht werden kann, da das Netzwerk, über das der Anruf weitergeleitet wurde, nicht das gewünschte Ziel bedient. Diese Ursache wird netzwerkabhängig unterstützt.
+USER_BUSY: Diese Ursache wird verwendet, um zu zeigen, dass der angerufene Teilnehmer keinen weiteren Anruf annehmen kann, weil der Benutzer besetzt ist. Dieser Ursachenwert kann vom angerufenen Benutzer oder vom Netzwerk generiert werden. Im Fall eines vom Benutzer generierten „USER_BUSY“ wird angemerkt, dass das Benutzergerät mit dem Anruf kompatibel ist.
+NO_USER_RESPONSE: : Diese Ursache wird verwendet, wenn ein angerufener Teilnehmer nicht innerhalb des vorgeschriebenen Zeitraums auf eine Anrufaufbau-Nachricht mit einer Warn- oder Verbindungsanzeige antwortet.
+NO_ANSWER: Diese Ursache wird verwendet, wenn der angerufene Teilnehmer benachrichtigt wurde, jedoch reagiert nicht innerhalb eines vorgeschriebenen Zeitraums mit einer Verbindungsanzeige. Hinweis: Diese Ursache wird nicht unbedingt durch Q.931-Prozeduren generiert, sondern kann durch interne Netzwerkzeitgeber generiert werden.
+SUBSCRIBER_ABSENT: Dieser Ursachenwert wird verwendet, wenn sich eine Mobilstation abgemeldet hat, kein Funkkontakt mit einer Mobilstation hergestellt wurde oder wenn ein persönlicher Telekommunikationsbenutzer vorübergehend an keiner Benutzer-Netzwerk-Schnittstelle adressierbar ist. Sofia SIP zeigt in solchen Situationen normalerweise USER_NOT_REGISTERED an.
+CALL_REJECTED: Diese Ursache weist darauf hin, dass das Gerät, das diese Ursache sendet, diesen Anruf nicht annehmen möchte, obwohl es den Anruf annehmen könnte, da das Gerät, das diese Ursache sendet, weder beschäftigt noch inkompatibel ist. Das Netzwerk kann auch diese Ursache erzeugen, was darauf hinweist, dass der Anruf aufgrund einer zusätzlichen Dienstbeschränkung gelöscht wurde. Das Diagnosefeld kann zusätzliche Informationen über den Zusatzdienst und den Grund für die Ablehnung enthalten.
+NUMBER_CHANGED: Diese Ursache wird an einen Anrufer zurückgegeben, wenn die vom Anrufer angegebene Nummer nicht mehr dem angerufenen Teilnehmer zugewiesen ist. Die neue Nummer des angerufenen Teilnehmers kann optional in das Diagnosefeld aufgenommen werden. Wenn ein Netzwerk diese Ursache nicht unterstützt, Ursache Nr. 1, soll eine nicht zugewiesene (nicht zugewiesene) Nummer verwendet werden.
+REDIRECTION_TO_NEW_DESTINATION: Diese Ursache wird von einem allgemeinen ISUP-Protokollmechanismus verwendet, der von einer Vermittlungsstelle aufgerufen werden kann, die entscheidet, dass der Anruf auf eine andere angerufene Nummer aufgebaut werden soll. Eine solche Vermittlungsstelle kann unter Verwendung dieses Ursachenwerts einen Umleitungsmechanismus aufrufen, um eine vorhergehende Vermittlungsstelle, die an dem Anruf beteiligt ist, aufzufordern, den Anruf an die neue Nummer weiterzuleiten.
+EXCHANGE_ROUTING_ERROR: Diese Ursache weist darauf hin, dass das vom Benutzer angegebene Ziel nicht erreicht werden kann, da eine Zwischenvermittlung den Anruf freigegeben hat, weil bei der Ausführung der Sprungzählerprozedur ein Grenzwert erreicht wurde. Diese Ursache wird von einem Zwischenknoten erzeugt, der beim Dekrementieren des Sprungzählerwerts das Ergebnis 0 ergibt.
+DESTINATION_OUT_OF_ORDER: Diese Ursache weist darauf hin, dass das vom Benutzer angegebene Ziel nicht erreicht werden kann, da die Schnittstelle zum Ziel nicht ordnungsgemäß funktioniert. Der Begriff „funktioniert nicht richtig“ bedeutet, dass eine Signalnachricht nicht an die Gegenstelle übermittelt werden konnte. z.B. Ein Ausfall der physischen Schicht oder der Datenverbindungsschicht auf der Gegenstelle oder der Offline-Benutzerausrüstung.
+INVALID_NUMBER_FORMAT: Diese Ursache weist darauf hin, dass der angerufene Teilnehmer nicht erreicht werden kann, da die Nummer des angerufenen Teilnehmers kein gültiges Format hat oder nicht vollständig ist.
+FACILITY_REJECTED: Diese Ursache wird zurückgegeben, wenn ein vom Benutzer angeforderter Zusatzdienst vom Netzwerk nicht bereitgestellt werden kann.
+NORMAL_UNSPECIFIED: Diese Ursache wird verwendet, um ein normales Ereignis nur dann zu melden, wenn keine andere Ursache in der normalen Klasse vorliegt.
+NORMAL_CIRCUIT_CONGESTION: Diese Ursache weist darauf hin, dass derzeit kein geeigneter Schaltkreis / Kanal für die Anrufbearbeitung verfügbar ist.
+NETWORK_OUT_OF_ORDER: Diese Ursache zeigt an, dass das Netzwerk nicht richtig funktioniert und dass der Zustand wahrscheinlich einen relativ langen Zeitraum andauert, z.B. Ein sofortiger erneuter Versuch des Anrufs ist wahrscheinlich nicht erfolgreich.
+NORMAL_TEMPORARY_FAILURE: Diese Ursache weist darauf hin, dass das Netzwerk nicht ordnungsgemäß funktioniert und der Zustand wahrscheinlich nicht lange anhält. z.B. Der Benutzer möchte möglicherweise fast sofort einen weiteren Anruf versuchen.
+SWITCH_CONGESTION: Diese Ursache weist darauf hin, dass die diese Ursache verursachende Vermittlungseinrichtung einen Zeitraum mit hohem Datenverkehr aufweist.
+REQUESTED_CHAN_UNAVAIL: Diese Ursache wird zurückgegeben, wenn die andere Seite der Schnittstelle die von der anfordernden Entität angegebene Schaltung oder den Kanal nicht bereitstellen kann.
+OUTGOING_CALL_BARRED: Diese Ursache weist darauf hin, dass der anrufende Teilnehmer zwar Mitglied der CUG für den ausgehenden CUG-Anruf ist, jedoch sind ausgehende Anrufe für dieses Mitglied der CUG nicht zulässig.
+INCOMING_CALL_BARRED: Diese Ursache weist darauf hin, dass der angerufene Teilnehmer zwar Mitglied der CUG für den eingehenden CUG-Anruf ist, jedoch sind eingehende Anrufe für dieses Mitglied der CUG nicht zulässig
+BEARERCAPABILITY_NOTAUTH: Diese Ursache weist darauf hin, dass der Benutzer eine Trägerfunktion angefordert hat, die von dem Gerät, das diese Ursache verursacht hat, implementiert wird, der Benutzer jedoch nicht zur Verwendung berechtigt ist.
+BEARERCAPABILITY_NOTAVAIL: Diese Ursache weist darauf hin, dass der Benutzer eine Trägerfunktion angefordert hat, die von dem Gerät, das diese Ursache verursacht hat, implementiert wird, aber derzeit nicht verfügbar ist.
+BEARERCAPABILITY_NOTIMPL: Diese Ursache weist darauf hin, dass das Gerät, das diese Ursache sendet, die angeforderte Trägerfähigkeit nicht unterstützt.
+FACILITY_NOT_IMPLEMENTED: Diese Ursache weist darauf hin, dass das Gerät, das diese Ursache sendet, die angeforderten Zusatzdienste nicht unterstützt.
+SERVICE_NOT_IMPLEMENTED: Diese Ursache wird verwendet, um ein Ereignis eines Dienstes oder einer Option, die nicht implementiert ist, nur dann zu melden, wenn keine andere Ursache in der Klasse des Dienstes vorliegt oder der Option nicht implementiert ist.
+INCOMPATIBLE_DESTINATION: Diese Ursache zeigt an, dass das Gerät, das diese Ursache sendet, eine Anforderung zum Herstellen eines Anrufs erhalten hat, der eine geringe Schichtkompatibilität, eine hohe Schichtkompatibilität oder andere Kompatibilitätsattribute (z. B. Datenrate) aufweist, die nicht berücksichtigt werden können.
+RECOVERY_ON_TIMER_EXPIRE: Diese Ursache weist darauf hin, dass eine Prozedur durch Ablauf eines Zeitgebers in Verbindung mit Fehlerbehandlungsprozeduren initiiert wurde. Dies ist häufig mit NAT-Problemen verbunden. Stellen Sie sicher, dass „NAT Mapping Enable“ in Ihrem ATA aktiviert ist. Wenn es nicht NAT-bezogen ist, kann es manchmal anbieterbezogen sein. Stellen Sie sicher, dass ein anderer ausgehender Anbieter das Problem nicht löst.
+ORIGINATOR_CANCEL: Der Anrufer legte auf.
+HANGUP Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "HANGUP",
+         "hangupCause": "USER_BUSY"
+      }
+   ]
+}
+CALL SETTINGS Block #
+Mit dieser Funktion kann die Anruferkennung (ANI) des Anrufers bei einer Anrufweiterleitung mit einer anderen Rufnummer ersetzt werden. Die Signalisierungsnummer muss im Nummernbestand des TENIOS-Kontos sein.
+
+forwardAni Optional	Anruferkennung / CallerID. „ANI“-Eigenschaft, die ANI für alle folgenden Bridge/Originate-Befehle überschreibt (bis ein anderer CALL_SETTINGS-Block dies wieder überschreibt).
+acdPriority Optional	In ACD-Blöcken wird, wenn dieses Flag auf „true“ gesetzt ist, dem Anruf Vorrang vor anderen Anrufen gegeben, bei denen dieses Flag nicht gesetzt ist.
+customSipVariables Optional	Ermöglicht die Einstellung benutzerdefinierter SIP-Header für REFER- und BRIDGE-Block. Bei der Übergabe an das Kundensystem bekommen die Variablennamen automatisch das Präfix „X-TCC“:
+Bsp.: „X-TCC-variable_A“
+
+Die maximale Länge sowohl der Variablennamen als auch der Werte ist auf 300 Zeichen beschränkt. Die folgenden Zeichen können verwendet werden:
+
+a-z
+A-Z
+0-9
+– (dash)
+_ (underscore)
+Es ist möglich benutzerdefinierte SIP-Variablen zu entfernen indem man sie auf null setzt (siehe Beispiel 2).
+
+#
+CALL_SETTINGS Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "CALL_SETTINGS",
+         "forwardAni": "+4930700",
+         "acdPriority": true,
+         "customSipVariables": [
+            {
+               "name": "variable_A",
+               "value": "variable_A_value"
+            },
+            {
+               "name": "variable_B",
+               "value": "variable_B_value"
+            }
+         ]
+      },
+      {
+         "blockType": "BRIDGE",
+         "destinations": [
+            {
+               "destination": "CUSTOM_SIP_TRUNK",
+               "destinationType": "SIP_TRUNK",
+               "timeout": "25"
+            }
+         ],
+         "bridgeMode": "SEQUENTIAL"
+      }
+   ]
+}
+ 
+
+Beispiel 2: Ändern von customSipVariables für weitere Call Control Blöcke
+{
+   "blocks": [
+      {
+         "blockType": "CALL_SETTINGS",
+         "forwardAni": "+495555555",
+         "customSipVariables": [
+            {
+               "name": "variable_A",
+               "value": "variable_A_value"
+            },
+            {
+               "name": "variable_B",
+               "value": "variable_B_value"
+            }
+         ]
+      },
+      {
+         "blockType": "BRIDGE",
+         "destinations": [
+            {
+               "destination": "CUSTOM_SIP_TRUNK",
+               "destinationType": "SIP_TRUNK",
+               "timeout": 25
+            }
+         ],
+         "bridgeMode": "SEQUENTIAL"
+      },
+      {
+         "blockType": "CALL_SETTINGS",
+         "customSipVariables": [
+            {
+               "name": "variable_B",
+               "value": null
+            }
+         ]
+      },
+      {
+         "blockType": "REFER",
+         "phoneNumber": "+49221987654321"
+      }
+   ]
+}
+#
+REFER Block #
+Dieser Block sendet eine SIP REFER-Nachricht mit der konfigurierten SIP URI zurück an den SIP-Trunk und beendet den Anruf.
+
+uri	
+Die SIP URI, die in der entsprechenden REFER-Nachricht in den Refer-To-Header eingefügt wird.
+
+REFER Block Beispiel #
+HTTP Status Code: 200 (OK)
+
+{
+   "blocks": [
+      {
+         "blockType": "REFER",
+         "uri": "sip:+49221554003005@tenios.com"
+      }
+   ]
+}
+Der REFER-Block darf nur verwendet werden, wenn der Anruf über einen registrierten SIP-Trunk eingegangen ist. Wenn der Block versehentlich außerhalb des SIP-Trunk-Routings verwendet wird, wird der Anruf sofort aufgelegt.

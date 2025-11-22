@@ -1,0 +1,62 @@
+{
+  "name": "ki-phone-connect-backend",
+  "version": "1.0.0",
+  "description": "Voice-based meter reading system backend",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest --coverage",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:contract": "jest --testPathPattern=contract",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "voice",
+    "meter-reading",
+    "tenios",
+    "openai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.2",
+    "csv-stringify": "^6.4.4",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.20.0",
+    "pino": "^8.16.2",
+    "pino-http": "^8.5.1",
+    "proper-lockfile": "^4.1.2",
+    "ws": "^8.14.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.10",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/ws": "^8.5.9",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "pino-pretty": "^13.1.2",
+    "ts-jest": "^29.1.1",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
