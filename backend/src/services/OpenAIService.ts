@@ -51,7 +51,7 @@ export class OpenAIService {
       logger.debug({ callId, messageCount: conversationHistory.length }, 'Generating GPT-4 response');
 
       const completion = await this.client.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4.1-mini',
         messages: conversationHistory,
         temperature: 0.7,
         max_tokens: 150
@@ -73,13 +73,18 @@ export class OpenAIService {
    */
   async synthesizeSpeech(text: string, callId: string): Promise<Buffer> {
     try {
-      logger.debug({ callId, text }, 'Synthesizing speech with TTS');
+      // Strip SSML tags as OpenAI doesn't support them
+      const cleanText = text.replace(/<[^>]*>/g, '').trim();
+
+      logger.debug({ callId, text: cleanText }, 'Synthesizing speech with OpenAI TTS');
 
       const mp3 = await this.client.audio.speech.create({
-        model: 'tts-1',
-        voice: 'nova',
-        input: text,
-        response_format: 'mp3'
+        model: 'gpt-4o-mini-tts',
+        voice: 'shimmer',
+        instructions: 'Sprich klar und deutlich auf Deutsch in einem leicht sexy, flirty Ton.',
+        input: cleanText,
+        response_format: 'mp3',
+        speed: 1.0
       });
 
       const buffer = Buffer.from(await mp3.arrayBuffer());
@@ -98,6 +103,8 @@ export class OpenAIService {
    */
   async extractNumber(userInput: string, context: string, callId: string): Promise<string | null> {
     try {
+      const startTime = Date.now();
+
       const systemPrompt = `Du bist ein Assistent, der Zahlen aus gesprochenem Text extrahiert.
 Kontext: ${context}
 Extrahiere die relevante Zahl oder Nummer aus der Benutzereingabe.
@@ -105,7 +112,7 @@ Wenn keine klare Nummer erkennbar ist, antworte mit "unclear".
 Gib nur die extrahierte Nummer zurück, ohne zusätzlichen Text.`;
 
       const completion = await this.client.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // Faster and cheaper than gpt-4
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userInput }
@@ -114,14 +121,15 @@ Gib nur die extrahierte Nummer zurück, ohne zusätzlichen Text.`;
         max_tokens: 50
       });
 
+      const duration = Date.now() - startTime;
       const extracted = completion.choices[0]?.message?.content?.trim() || '';
 
       if (extracted.toLowerCase() === 'unclear' || extracted === '') {
-        logger.debug({ callId, userInput, context }, 'Could not extract number from input');
+        logger.debug({ callId, userInput, context, duration }, 'Could not extract number');
         return null;
       }
 
-      logger.debug({ callId, userInput, extracted }, 'Number extracted successfully');
+      logger.info({ callId, userInput, extracted, duration }, 'Number extracted');
       return extracted;
     } catch (error) {
       logger.error({ callId, error }, 'Failed to extract number');

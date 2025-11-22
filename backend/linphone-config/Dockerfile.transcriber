@@ -1,0 +1,19 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    linphone-cli \
+    alsa-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create recordings directory
+RUN mkdir -p /app/recordings
+
+# Set working directory
+WORKDIR /app
+
+# Copy transcriber config into container
+COPY transcriber.linphonerc /root/.linphonerc
+
+# Default command (will be overridden by docker-compose)
+CMD ["linphonec", "-c", "/root/.linphonerc", "-d", "6"]

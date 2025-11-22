@@ -1,0 +1,31 @@
+services:
+  linphone-agent:
+    build:
+      context: ./linphone-config
+      dockerfile: Dockerfile.agent
+    container_name: linphone-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./linphone-recordings:/app/recordings
+      - linphone-agent-data:/root/.local/share/linphone
+    stdin_open: true
+    tty: true
+
+  linphone-transcriber:
+    build:
+      context: ./linphone-config
+      dockerfile: Dockerfile.transcriber
+    container_name: linphone-transcriber
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./linphone-recordings:/app/recordings
+      - linphone-transcriber-data:/root/.local/share/linphone
+    stdin_open: true
+    tty: true
+    command: ["linphonec", "-c", "/root/.linphonerc", "-d", "6"]
+
+volumes:
+  linphone-agent-data:
+  linphone-transcriber-data:

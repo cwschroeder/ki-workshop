@@ -68,6 +68,77 @@ Kopiere die ngrok-URL (z.B. `https://abc123.ngrok-free.app`)
 4. **Schritt 2**: Bei Fehler → Weiterleitung an SIP Account "cwschroeder"
 5. Routingplan speichern und der Rufnummer zuweisen
 
+## SIP-Transkription mit Linphone
+
+Der Node.js-Server verbindet sich nicht mehr direkt mit Tenios. Stattdessen läuft ein separater
+Linphone-Client (GUI, CLI oder `linphone-daemon`), der die SIP-Zugangsdaten registriert,
+Silent-Monitoring-Anrufe automatisch annimmt und den RTP-Stream als WAV-Datei speichert.
+
+1. **Linphone installieren**
+   - macOS: `brew install linphone`
+   - Ubuntu: `sudo apt install linphone-daemon linphonec`
+
+2. **Konfigurationsdatei erstellen (z. B. `~/.linphonerc-transcriber`)**
+
+   ```ini
+   [auth_info_0]
+   username=cmschroeder
+   passwd=<TENIOS_SIP_PASSWORD>
+   realm=*
+   domain=204671.tenios.com
+
+   [proxy_0]
+   reg_identity="sip:cmschroeder@204671.tenios.com"
+   reg_proxy="sip:sip.tenios.com;transport=tls"
+   reg_expires=300
+   publish=0
+
+   [app]
+   auto_answer=yes
+
+   [sound]
+   record_file=/ABSOLUTER/PFAD/zu/ki-phone-connect/backend/linphone-recordings/call_%c.wav
+   ```
+
+   `%c` wird automatisch durch die SIP Call-ID ersetzt. Der Pfad muss mit `LINPHONE_RECORDINGS_DIR`
+   aus der `.env` übereinstimmen (Standard: `backend/linphone-recordings`).
+
+3. **Docker-basierte Linphone-Daemons**
+
+   Im Ordner `backend/` liegen Beispielkonfigurationen sowie ein Compose-File:
+
+   ```bash
+   cd backend
+   cp linphone-config/agent.linphonerc.example linphone-config/agent.linphonerc
+   cp linphone-config/transcriber.linphonerc.example linphone-config/transcriber.linphonerc
+   # Zugangsdaten (Benutzername/Passwort) eintragen und ggf. Geräte anpassen
+
+   # Container starten (Agent + Transcriber)
+   ./scripts/linphone/up.sh
+
+   # Status / Logs
+   docker compose -f docker-compose.linphone.yml ps
+   docker logs -f linphone-agent
+   docker logs -f linphone-transcriber
+
+   # Container stoppen
+   ./scripts/linphone/down.sh
+   ```
+
+   - `linphone-agent` registriert `env.AGENT_SIP_URI` und nimmt BRIDGE-Anrufe entgegen
+   - `linphone-transcriber` registriert das Silent-Monitoring-Konto (`env.TRANSCRIPTION_SIP_URI`) und
+     schreibt WAV-Dateien nach `backend/linphone-recordings/`
+
+4. **Transkription im Backend**
+
+   `src/services/SipTranscriptionService.ts` beobachtet das Recording-Verzeichnis. Sobald eine Datei
+   fertig geschrieben wurde (kein Änderungsereignis mehr), wird sie automatisch mit OpenAI Whisper
+   transkribiert und unter `data/transcriptions.csv` gespeichert. Der Dateiname (`call_<id>.wav`)
+   dient als `call_id` in der CSV.
+
+   Für Tests reicht es aus, eine beliebige WAV-Datei in `backend/linphone-recordings/` zu kopieren –
+   der Watcher verarbeitet sie ebenfalls.
+
 ## Test-Daten
 
 In `backend/data/customers.csv` sind Testkunden vorhanden:

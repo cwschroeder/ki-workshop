@@ -1,0 +1,24 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    linphone-cli \
+    alsa-utils \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create recordings directory
+RUN mkdir -p /app/recordings
+
+# Set working directory
+WORKDIR /app
+
+# Copy agent config into container
+COPY agent.linphonerc /root/.linphonerc
+
+# Copy auto-answer wrapper script
+COPY auto-answer-wrapper.sh /app/auto-answer-wrapper.sh
+RUN chmod +x /app/auto-answer-wrapper.sh
+
+# Default command (will be overridden by docker-compose)
+CMD ["/app/auto-answer-wrapper.sh"]

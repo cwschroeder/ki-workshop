@@ -1,6 +1,7 @@
 import { CallStateManager } from './CallStateManager';
 import { OpenAIService } from './OpenAIService';
 import { CsvService } from './CsvService';
+import { AIAgentService } from './AIAgentService';
 import { CallStep } from '../models/CallState';
 import { PROMPTS, MAX_RETRIES } from '../config/constants';
 import { createLogger } from '../utils/logger';
@@ -8,11 +9,15 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger({ service: 'CallFlowService' });
 
 export class CallFlowService {
+  private aiAgentService: AIAgentService;
+
   constructor(
     private callStateManager: CallStateManager,
     private openAIService: OpenAIService,
     private csvService: CsvService
-  ) {}
+  ) {
+    this.aiAgentService = new AIAgentService();
+  }
 
   async processUserInput(callId: string, userInput: string): Promise<string> {
     const state = this.callStateManager.getCall(callId);
@@ -31,6 +36,10 @@ export class CallFlowService {
         response = await this.handleGreeting(callId);
         break;
 
+      case CallStep.MENU_SELECTION:
+        response = await this.handleMenuSelection(callId, userInput);
+        break;
+
       case CallStep.REQUEST_CUSTOMER_NUMBER:
         response = await this.handleCustomerNumber(callId, userInput);
         break;
@@ -47,6 +56,10 @@ export class CallFlowService {
         response = await this.handleConfirmation(callId);
         break;
 
+      case CallStep.AI_AGENT:
+        response = await this.handleAIAgent(callId);
+        break;
+
       default:
         logger.error({ callId, step: state.step }, 'Unknown call step');
         response = PROMPTS.MAX_RETRIES_EXCEEDED;
@@ -59,8 +72,40 @@ export class CallFlowService {
   }
 
   private async handleGreeting(callId: string): Promise<string> {
-    this.callStateManager.advanceStep(callId, CallStep.REQUEST_CUSTOMER_NUMBER);
-    return `${PROMPTS.GREETING} ${PROMPTS.REQUEST_CUSTOMER_NUMBER}`;
+    this.callStateManager.advanceStep(callId, CallStep.MENU_SELECTION);
+    return `${PROMPTS.GREETING} ${PROMPTS.MENU_SELECTION}`;
+  }
+
+  private async handleMenuSelection(callId: string, userInput: string): Promise<string> {
+    // Try to extract menu choice (1 or 2)
+    const menuChoice = await this.openAIService.extractNumber(
+      userInput,
+      'Menüauswahl (1 für Zählerstand, 2 für Mitarbeiter)',
+      callId
+    );
+
+    // Also check for keywords in user input
+    const lowerInput = userInput.toLowerCase();
+    const wantsMeterReading = lowerInput.includes('zählerstand') || lowerInput.includes('zähler') ||
+                               lowerInput.includes('eins') || menuChoice === '1';
+    const wantsAgent = lowerInput.includes('mitarbeiter') || lowerInput.includes('agent') ||
+                       lowerInput.includes('zwei') || menuChoice === '2';
+
+    if (wantsMeterReading) {
+      // User wants to report meter reading - continue with normal flow
+      logger.info({ callId }, 'User selected meter reading from menu');
+      this.callStateManager.advanceStep(callId, CallStep.REQUEST_CUSTOMER_NUMBER);
+      return PROMPTS.REQUEST_CUSTOMER_NUMBER;
+    } else if (wantsAgent) {
+      // User wants to talk to an agent - will be handled in index.ts via BRIDGE block
+      logger.info({ callId }, 'User selected agent transfer from menu');
+      this.callStateManager.advanceStep(callId, CallStep.TRANSFERRED_TO_AGENT);
+      // This special response will be detected in index.ts to trigger BRIDGE + Silent Monitoring
+      return 'TRANSFER_TO_AGENT';
+    } else {
+      // Unclear input - retry menu
+      return this.handleUnclearInput(callId, PROMPTS.MENU_SELECTION);
+    }
   }
 
   private async handleCustomerNumber(callId: string, userInput: string): Promise<string> {
@@ -181,5 +226,33 @@ export class CallFlowService {
 
     logger.debug({ callId, retryCount }, 'Retry requested');
     return `${PROMPTS.UNCLEAR_INPUT} ${retryPrompt}`;
+  }
+
+  private async handleAIAgent(callId: string): Promise<string> {
+    const state = this.callStateManager.getCall(callId);
+    if (!state) {
+      logger.error({ callId }, 'Call state not found for AI agent');
+      return PROMPTS.MAX_RETRIES_EXCEEDED;
+    }
+
+    try {
+      // Generate AI agent response based on conversation history
+      const { response, shouldEnd } = await this.aiAgentService.generateAgentResponse(
+        state.transcript,
+        callId
+      );
+
+      if (shouldEnd) {
+        // AI agent wants to end the conversation
+        logger.info({ callId }, 'AI agent ending conversation');
+        this.callStateManager.advanceStep(callId, CallStep.COMPLETED);
+      }
+
+      return `<prosody rate="medium">${response}</prosody>`;
+    } catch (error) {
+      logger.error({ callId, error }, 'Error in AI agent conversation');
+      this.callStateManager.updateCall(callId, { step: CallStep.ERROR });
+      return PROMPTS.MAX_RETRIES_EXCEEDED;
+    }
   }
 }

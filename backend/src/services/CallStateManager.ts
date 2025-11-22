@@ -17,7 +17,7 @@ export class CallStateManager {
     };
 
     this.states.set(callId, state);
-    logger.info({ callId }, 'Call state created');
+    logger.debug({ callId }, 'Call state created');
     return state;
   }
 
@@ -81,7 +81,7 @@ export class CallStateManager {
 
   deleteCall(callId: string): void {
     this.states.delete(callId);
-    logger.info({ callId }, 'Call state deleted');
+    logger.debug({ callId }, 'Call state deleted');
   }
 
   getAllActiveCalls(): CallState[] {

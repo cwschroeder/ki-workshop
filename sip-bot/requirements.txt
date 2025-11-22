@@ -1,0 +1,17 @@
+# SIP Stack
+pjsua2
+
+# OpenAI SDK
+openai>=1.0.0
+
+# WebSocket for dashboard streaming
+websockets>=12.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Async support
+asyncio
+
+# Audio processing
+numpy>=1.24.0

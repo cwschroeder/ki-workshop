@@ -4,6 +4,7 @@ import { stringify } from 'csv-stringify/sync';
 import lockfile from 'proper-lockfile';
 import { Customer, CustomerSchema } from '../models/Customer';
 import { MeterReading, MeterReadingSchema } from '../models/MeterReading';
+import { Transcription, TranscriptionSchema } from '../models/Transcription';
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
 
@@ -115,6 +116,24 @@ export class CsvService {
         callId: reading.call_id
       },
       'Meter reading saved'
+    );
+  }
+
+  async getTranscriptions(): Promise<Transcription[]> {
+    return this.readCsv(env.TRANSCRIPTIONS_CSV_PATH, TranscriptionSchema);
+  }
+
+  async saveTranscription(transcription: Transcription): Promise<void> {
+    const transcriptions = await this.getTranscriptions();
+    transcriptions.push(transcription);
+    await this.writeCsv(env.TRANSCRIPTIONS_CSV_PATH, transcriptions);
+    logger.debug(
+      {
+        callId: transcription.call_id,
+        speaker: transcription.speaker,
+        textLength: transcription.text.length
+      },
+      'Transcription saved'
     );
   }
 }

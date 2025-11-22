@@ -1,0 +1,17 @@
+[auth_info_0]
+username=AGENT_USERNAME
+passwd=AGENT_PASSWORD
+realm=*
+domain=204671.tenios.com
+
+[proxy_0]
+reg_identity="sip:AGENT_USERNAME@204671.tenios.com"
+reg_proxy="sip:sip.tenios.com;transport=tls"
+reg_expires=300
+
+[app]
+auto_answer=no
+
+[sound]
+play_dev=ALSA:default
+rec_dev=ALSA:default
