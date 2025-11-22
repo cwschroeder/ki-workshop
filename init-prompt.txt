@@ -1,0 +1,7 @@
+ich habe von tenios eine rufnummer und kann einen sip trunk auf meinem hetzner  server hosten. ich möchte gerne eine anwendung auf basis der tenios voice api erstellen, die das szenario abbildet:
+ kunde ruft bei stadtwerk an um seinem zählerstand für die jahresabrechnung mitzuteilen, der anruf wird angenommen, eine ki-stimme meldet sich als stadtwerk und fragt nach der kundennummer und der
+zählernummer, anrufer nennt beides, anwendung prüft ob kunde in kundenliste (csv-datei) ist und ob die zählernummer passt, fragt nach wenn es nicht passt und wenn es ok ist, dann trägt der bot den
+neuen zählerstand in die csv-datei mit aktuellem datum und uhrzeit ein, bedankt sich beim anrufer und beendet das gespräch. wir wollen zunächst diese api von tenios nutzen:
+https://www.tenios.de/doc-category/voice-api-allgemein. später wollen wir das system erweitern und das live-transkribieren des calls ergänzen, so dass über eine weboberfläche ein supervisor die
+gespräche sehen kann und ggf. sich einklinken kann, wenn das gespräch aus dem ruder laufen sollte.
+
