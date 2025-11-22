@@ -24,7 +24,9 @@ export class VoiceAgentService {
     this.sipServer = new SIPServerService(
       5060,
       'cwschroeder',
-      '204671.tenios.com'
+      '204671.tenios.com',
+      'passwort123456',
+      env.PUBLIC_IP
     );
 
     // Initialize AI providers (OpenAI for now, easily swappable)

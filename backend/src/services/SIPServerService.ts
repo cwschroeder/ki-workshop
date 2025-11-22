@@ -35,7 +35,8 @@ export class SIPServerService extends EventEmitter {
     sipPort: number = 5060,
     username: string = 'cwschroeder',
     domain: string = '204671.tenios.com',
-    password: string = 'passwort123456'
+    password: string = 'passwort123456',
+    publicIP?: string
   ) {
     super();
     this.sipPort = sipPort;
@@ -43,6 +44,12 @@ export class SIPServerService extends EventEmitter {
     this.domain = domain;
     this.password = password;
     this.rtpPortRange = { min: 10000, max: 20000 };
+
+    // If public IP provided, use it for advertising; otherwise auto-detect
+    if (publicIP) {
+      this.advertisedIP = publicIP;
+      logger.info({ publicIP }, 'Using configured public IP for SDP');
+    }
   }
 
   async start(): Promise<void> {
@@ -87,7 +94,10 @@ export class SIPServerService extends EventEmitter {
         if (!net.internal && net.family === 'IPv4') {
           this.localIP = net.address;
           logger.info({ localIP: this.localIP }, 'Detected local IP');
-          this.advertisedIP = this.localIP;
+          // Only set advertisedIP if not already configured via constructor
+          if (!this.advertisedIP) {
+            this.advertisedIP = this.localIP;
+          }
           return;
         }
       }
