@@ -21,9 +21,13 @@ export class VoiceAgentPipeline extends EventEmitter {
   private isProcessing: boolean = false;
   private isSpeaking: boolean = false;
   private isStopped: boolean = false;
+  private shouldInterrupt: boolean = false;
+  private speakingStartTime: number = 0;
 
   private readonly SAMPLE_RATE = 8000;
   private readonly LANGUAGE = 'de';
+  private readonly INTERRUPT_THRESHOLD = this.SAMPLE_RATE * 2 * 3; // 3 seconds to interrupt (reduce false positives from background noise)
+  private readonly INTERRUPT_COOLDOWN_MS = 1000; // 1 second cooldown before allowing interrupts
 
   constructor(
     callId: string,
@@ -82,15 +86,32 @@ Sprich auf Deutsch.`
    * Handle incoming audio from RTP
    */
   private handleIncomingAudio(audioData: Buffer): void {
-    // Don't process audio while we're speaking
-    if (this.isSpeaking || this.isProcessing) {
+    // ALWAYS buffer incoming audio (full-duplex)
+    this.audioBuffer = Buffer.concat([this.audioBuffer, audioData]);
+
+    // If agent is speaking, check for interrupt
+    if (this.isSpeaking) {
+      // Only allow interrupts after cooldown period (prevents false positives from audio during TTS generation)
+      const timeSpoken = Date.now() - this.speakingStartTime;
+      if (timeSpoken < this.INTERRUPT_COOLDOWN_MS) {
+        return; // Still in cooldown period, ignore interrupt attempts
+      }
+
+      // If user speaks for 1 second while agent talks, interrupt
+      if (this.audioBuffer.length >= this.INTERRUPT_THRESHOLD) {
+        logger.info({ callId: this.callId, bufferSize: this.audioBuffer.length }, 'User interrupting agent');
+        this.shouldInterrupt = true;
+        // Don't process yet - let speak() finish naturally, then process
+      }
       return;
     }
 
-    // Append to buffer
-    this.audioBuffer = Buffer.concat([this.audioBuffer, audioData]);
+    // Don't process while already processing
+    if (this.isProcessing) {
+      return;
+    }
 
-    // Simple VAD: Check if we have enough audio (e.g., 2 seconds)
+    // VAD: Check if we have enough audio (2 seconds)
     const minBufferSize = this.SAMPLE_RATE * 2 * 2; // 2 seconds, 16-bit samples
 
     if (this.audioBuffer.length >= minBufferSize) {
@@ -154,18 +175,27 @@ Sprich auf Deutsch.`
       return;
     }
 
-    this.isSpeaking = true;
     const startedAt = Date.now();
 
     try {
       logger.info({ callId: this.callId, text }, 'Generating speech');
 
-      // Generate TTS
+      // Generate TTS (NOT speaking yet, so user interrupts are queued)
       const audioBuffer = await this.ttsProvider.synthesize(text, this.LANGUAGE);
 
       if (this.isStopped) {
         logger.warn({ callId: this.callId }, 'Discarding speech: pipeline stopped');
+        return;
       }
+
+      // Clear any buffered audio BEFORE starting to speak
+      // This prevents false interrupts from audio that arrived during TTS generation
+      this.audioBuffer = Buffer.alloc(0);
+
+      // NOW we start speaking and check for interrupts
+      this.speakingStartTime = Date.now();
+      this.isSpeaking = true;
+      this.shouldInterrupt = false; // Reset interrupt flag
 
       // Stream audio in chunks via RTP
       const chunkSize = 320; // 20ms at 8kHz, 16-bit = 320 bytes
@@ -177,8 +207,14 @@ Sprich auf Deutsch.`
       this.rtpHandler.setMarkerForNextPacket();
 
       while (offset < audioBuffer.length) {
+        // Check for interrupts or stop
         if (this.isStopped) {
           logger.warn({ callId: this.callId }, 'Stopping speech mid-playback: pipeline stopped');
+          break;
+        }
+
+        if (this.shouldInterrupt) {
+          logger.info({ callId: this.callId, playedMs: Date.now() - startedAt }, 'Speech interrupted by user');
           break;
         }
 
@@ -193,7 +229,7 @@ Sprich auf Deutsch.`
         offset += chunkSize;
       }
 
-      if (!this.isStopped) {
+      if (!this.isStopped && !this.shouldInterrupt) {
         logger.info({ callId: this.callId, durationMs: Date.now() - startedAt, packets, bytes }, 'Speech playback completed');
       }
 
@@ -206,6 +242,15 @@ Sprich auf Deutsch.`
       }, 'Error generating speech');
     } finally {
       this.isSpeaking = false;
+
+      // If interrupted, process the buffered user audio immediately
+      if (this.shouldInterrupt && this.audioBuffer.length > 0) {
+        logger.info({ callId: this.callId }, 'Processing user input after interrupt');
+        this.shouldInterrupt = false;
+        // Give a tiny delay for any remaining audio to arrive
+        await new Promise(resolve => setTimeout(resolve, 100));
+        this.processAudioBuffer();
+      }
     }
   }
 
@@ -220,3 +265,4 @@ Sprich auf Deutsch.`
     this.audioBuffer = Buffer.alloc(0);
   }
 }
+
