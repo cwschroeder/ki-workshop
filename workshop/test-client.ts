@@ -1,0 +1,135 @@
+/**
+ * Einfacher Test-Client für lokale Server-Tests
+ *
+ * Verwendung:
+ *   1. IVU Voice API Server lokal starten
+ *   2. Dieses Script ausführen: npx tsx test-client.ts
+ *   3. TENIOS-Nummer anrufen
+ */
+
+import { createVoiceSession } from './lib/ivu-voice-client';
+
+async function main() {
+  console.log('🧪 IVU Voice API - Local Test Client\n');
+  console.log('=' .repeat(60));
+
+  try {
+    // Verbindung zu lokalem Server (für Produktion: serverUrl weglassen)
+    console.log('\n📡 Connecting to local server...');
+    const session = await createVoiceSession({
+      serverUrl: 'ws://localhost:3000' // Lokal (geändert auf Port 3000)
+      // serverUrl: 'wss://voice-api.ivu.de' // Produktion
+    });
+
+    console.log('✅ Connected to IVU Voice API Server');
+
+    // Rufnummer zuweisen
+    console.log('\n📞 Assigning phone number...');
+
+    // TENIOS Test-Rufnummer
+    const phoneNumber = '+494042237908';
+
+    await session.assignPhoneNumber(phoneNumber);
+    console.log('✅ Phone number assigned:', phoneNumber);
+
+    console.log('\n' + '='.repeat(60));
+    console.log('🎉 Test-Client bereit!');
+    console.log('=' .repeat(60));
+    console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
+    console.log('\n📋 Was passiert:');
+    console.log('   1. Sie rufen die Nummer an');
+    console.log('   2. TENIOS sendet Webhook an lokalen Server');
+    console.log('   3. Server routet Call zu dieser Session');
+    console.log('   4. Dieser Client empfängt call.incoming Event');
+    console.log('   5. Client antwortet mit SAY + HANGUP');
+    console.log('   6. Sie hören die Ansage am Telefon\n');
+    console.log('⏳ Waiting for calls...\n');
+    console.log('Press Ctrl+C to stop\n');
+
+    // Call-Handler registrieren
+    session.on('call.incoming', async (call) => {
+      console.log('\n' + '🔔 '.repeat(30));
+      console.log('📞 INCOMING CALL!');
+      console.log('🔔 '.repeat(30));
+      console.log('\n📋 Call Details:');
+      console.log('   Call ID:', call.callId);
+      console.log('   Session:', call.sessionId);
+      console.log('   Time:', new Date().toLocaleString('de-DE'));
+
+      try {
+        console.log('\n▶️  Executing call flow...\n');
+
+        // Schritt 1: Begrüßung
+        console.log('   [1/3] Saying hello...');
+        await call.say('Hallo! Willkommen beim IVU Voice API Test.');
+
+        // Schritt 2: Status
+        console.log('   [2/3] Confirming test...');
+        await call.say('Der lokale Server funktioniert einwandfrei.');
+
+        // Schritt 3: Verabschiedung
+        console.log('   [3/3] Hanging up...');
+        await call.hangup('Vielen Dank. Auf Wiedersehen!');
+
+        console.log('\n✅ Call handled successfully!\n');
+        console.log('=' .repeat(60));
+        console.log('💡 Sie können erneut anrufen oder Ctrl+C drücken');
+        console.log('=' .repeat(60) + '\n');
+
+      } catch (error) {
+        console.error('\n❌ Error handling call:');
+        console.error(error);
+        console.log('');
+      }
+    });
+
+    // User-Input Handler (wenn collectSpeech/collectDigits verwendet wird)
+    session.on('call.user_input', (input) => {
+      console.log('💬 User input received:', input);
+    });
+
+    // Call-Ended Handler
+    session.on('call.ended', (callId) => {
+      console.log('📵 Call ended:', callId);
+      console.log('⏳ Waiting for next call...\n');
+    });
+
+    // Error Handler
+    session.on('error', (error) => {
+      console.error('\n❌ Session error:');
+      console.error(error);
+      console.log('');
+    });
+
+    // Disconnected Handler
+    session.on('disconnected', (reason) => {
+      console.log('\n⚠️  Disconnected from server:', reason);
+      console.log('Attempting to reconnect...\n');
+    });
+
+    // Session Ready Handler
+    session.on('session.ready', (data) => {
+      console.log('🎯 Session ready:', data);
+    });
+
+    // Keep alive - script läuft bis Ctrl+C
+    process.on('SIGINT', () => {
+      console.log('\n\n👋 Shutting down test client...');
+      session.stop();
+      console.log('✅ Disconnected from server');
+      console.log('Goodbye!\n');
+      process.exit(0);
+    });
+
+  } catch (error) {
+    console.error('\n❌ Fatal error:');
+    console.error(error);
+    console.log('\n💡 Troubleshooting:');
+    console.log('   - Is the IVU Voice API Server running? (npm run dev)');
+    console.log('   - Is the server URL correct? (ws://localhost:3001)');
+    console.log('   - Check server logs for errors\n');
+    process.exit(1);
+  }
+}
+
+main();

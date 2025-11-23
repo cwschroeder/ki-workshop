@@ -1,0 +1,4 @@
+customer_number,meter_number,reading_value,reading_date,reading_time,call_id,source
+12345,M-789,5432,2025-11-22,14:35:12,call_001,phone
+23456,M-456,8765,2025-11-21,09:12:45,call_002,phone
+34567,M-123,12340,2025-11-20,16:48:33,call_003,phone

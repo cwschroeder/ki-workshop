@@ -1,0 +1,11 @@
+customer_number,meter_number,customer_name,address,city,postal_code
+12345,M-789,Max Mustermann,Musterstraße 1,Berlin,10115
+23456,M-456,Anna Schmidt,Testweg 42,Hamburg,20095
+34567,M-123,Peter Müller,Beispielplatz 7,München,80331
+45678,M-999,Maria Weber,Demostraße 15,Köln,50667
+56789,M-777,Thomas Fischer,Workshopweg 23,Frankfurt,60311
+67890,M-555,Julia Becker,API-Allee 99,Stuttgart,70173
+78901,M-333,Michael Wagner,Cloud-Ring 11,Düsseldorf,40210
+89012,M-222,Laura Hoffmann,Voice-Straße 88,Leipzig,04103
+90123,M-111,Sebastian Schulz,KI-Boulevard 5,Dortmund,44135
+11223,M-888,Sarah Koch,Workshop-Platz 33,Essen,45127
