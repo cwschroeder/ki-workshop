@@ -209,6 +209,8 @@ class B2BUATestManager {
       logger.info({ callId }, '📞 AGENT RECEIVED CALL');
 
       // Create interactive voice agent for the agent side
+      // IMPORTANT: speakerLabel identifies WHO IS SPEAKING (the remote party being heard)
+      // Agent pipeline hears the CUSTOMER speaking, so speakerLabel = 'customer'
       this.agentPipeline = new VoiceAgentPipeline(
         callId,
         rtpHandler,
@@ -217,7 +219,7 @@ class B2BUATestManager {
         this.ttsProvider,
         {
           listenOnlyMode: false, // Agent responds interactively
-          speakerLabel: 'agent'
+          speakerLabel: 'customer' // Agent hears the Customer speaking
         }
       );
 
@@ -397,6 +399,8 @@ class B2BUATestManager {
       logger.info({ callId }, '📞 CUSTOMER CALL ESTABLISHED');
 
       // Create voice pipeline for customer
+      // IMPORTANT: speakerLabel identifies WHO IS SPEAKING (the remote party being heard)
+      // Customer pipeline hears the AGENT speaking, so speakerLabel = 'agent'
       this.customerPipeline = new VoiceAgentPipeline(
         callId,
         rtpHandler,
@@ -405,7 +409,7 @@ class B2BUATestManager {
         this.ttsProvider,
         {
           listenOnlyMode: false, // Customer speaks interactively
-          speakerLabel: 'customer',
+          speakerLabel: 'agent', // Customer hears the Agent speaking
           systemPrompt: `Du bist ein Kunde des Stadtwerks.
 Du möchtest deinen Zählerstand melden.
 Antworte kurz und natürlich auf Deutsch (max 1-2 Sätze).

@@ -1,0 +1,43 @@
+{
+  "sessionId": "b2bua-1763873955673-q6r1oik",
+  "timestamp": "2025-11-23T04:59:25.675Z",
+  "transcriptCount": 6,
+  "transcripts": [
+    {
+      "source": "B2BUA-LEG-B",
+      "speaker": "agent",
+      "text": "Guten Tag.\n",
+      "timestamp": "2025-11-23T04:59:19.564Z"
+    },
+    {
+      "source": "B2BUA-LEG-B",
+      "speaker": "agent",
+      "text": "Willkommen beim Stadt-\n",
+      "timestamp": "2025-11-23T04:59:20.294Z"
+    },
+    {
+      "source": "CUSTOMER-HÖRT",
+      "speaker": "customer",
+      "text": "Guten Tag. Willkommen beim Stadt...\n",
+      "timestamp": "2025-11-23T04:59:20.297Z"
+    },
+    {
+      "source": "B2BUA-LEG-B",
+      "speaker": "agent",
+      "text": "wie kann ich\n",
+      "timestamp": "2025-11-23T04:59:21.304Z"
+    },
+    {
+      "source": "B2BUA-LEG-B",
+      "speaker": "agent",
+      "text": "ihnen heute helfen.\n",
+      "timestamp": "2025-11-23T04:59:22.329Z"
+    },
+    {
+      "source": "CUSTOMER-SAGT",
+      "speaker": "customer",
+      "text": "Guten Tag! Ich möchte gerne meinen Zählerstand melden.",
+      "timestamp": "2025-11-23T04:59:23.362Z"
+    }
+  ]
+}
