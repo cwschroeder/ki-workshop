@@ -30,6 +30,10 @@ export class RTPAudioHandler extends EventEmitter {
     this.payloadType = pt;
   }
 
+  getLocalPort(): number {
+    return this.localPort;
+  }
+
   /**
    * Start listening for RTP packets
    */

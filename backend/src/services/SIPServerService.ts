@@ -12,6 +12,13 @@ interface SIPCall {
   remoteAddress: string;
   remotePort: number;
   tag: string;
+  direction: 'inbound' | 'outbound';
+  state: 'calling' | 'ringing' | 'established' | 'terminated';
+}
+
+interface OutboundCallOptions {
+  toUri: string;
+  fromDisplayName?: string;
 }
 
 /**
@@ -22,6 +29,8 @@ export class SIPServerService extends EventEmitter {
   private sipPort: number;
   private rtpPortRange: { min: number; max: number };
   private activeCalls: Map<string, SIPCall> = new Map();
+  private allocatedRTPPorts: Set<number> = new Set();
+  private nextRTPPort: number;
   private username: string;
   private password: string;
   private domain: string;
@@ -31,12 +40,15 @@ export class SIPServerService extends EventEmitter {
   private advertisedIP: string = '';
   private cseqCounter: number = 1;
 
+  private skipRegistration: boolean = false;
+
   constructor(
     sipPort: number = 5060,
     username: string = 'cwschroeder',
     domain: string = '204671.tenios.com',
     password: string = 'passwort123456',
-    publicIP?: string
+    publicIP?: string,
+    skipRegistration: boolean = false
   ) {
     super();
     this.sipPort = sipPort;
@@ -44,6 +56,8 @@ export class SIPServerService extends EventEmitter {
     this.domain = domain;
     this.password = password;
     this.rtpPortRange = { min: 10000, max: 20000 };
+    this.nextRTPPort = this.rtpPortRange.min;
+    this.skipRegistration = skipRegistration;
 
     // If public IP provided, use it for advertising; otherwise auto-detect
     if (publicIP) {
@@ -76,8 +90,12 @@ export class SIPServerService extends EventEmitter {
       this.socket!.bind(this.sipPort, () => {
         logger.info({ port: this.sipPort }, 'SIP server listening');
 
-        // Start SIP REGISTER (re-registration interval will be set after 200 OK)
-        this.registerWithServer();
+        // Start SIP REGISTER only if not skipped (for peer-to-peer mode)
+        if (!this.skipRegistration) {
+          this.registerWithServer();
+        } else {
+          logger.info({ port: this.sipPort }, 'Peer-to-peer mode: skipping SIP REGISTER');
+        }
 
         resolve();
       });
@@ -113,8 +131,17 @@ export class SIPServerService extends EventEmitter {
 
     // Check if it's a response (SIP/2.0 ...) or request (METHOD ...)
     if (firstLine.startsWith('SIP/2.0')) {
-      // It's a response
-      this.handleRegisterResponse(message);
+      // It's a response - could be REGISTER or INVITE response
+      const callId = this.extractHeader(message, 'Call-ID');
+      const cseq = this.extractHeader(message, 'CSeq');
+
+      if (cseq.includes('REGISTER')) {
+        this.handleRegisterResponse(message);
+      } else if (cseq.includes('INVITE')) {
+        this.handleInviteResponse(message, remoteAddress, remotePort);
+      } else {
+        logger.warn({ cseq }, 'Unhandled SIP response type');
+      }
       return;
     }
 
@@ -203,7 +230,9 @@ export class SIPServerService extends EventEmitter {
         rtpHandler,
         remoteAddress,
         remotePort,
-        tag: toTag
+        tag: toTag,
+        direction: 'inbound',
+        state: 'established'
       };
       this.activeCalls.set(callId, call);
 
@@ -252,7 +281,9 @@ export class SIPServerService extends EventEmitter {
       const reason = this.extractHeader(message, 'Reason');
       logger.info({ callId, reason }, 'Call ended (BYE received)');
 
+      const rtpPort = call.rtpHandler.getLocalPort();
       await call.rtpHandler.stop();
+      this.freeRTPPort(rtpPort);
       this.activeCalls.delete(callId);
 
       this.sendResponse(200, 'OK', message, remoteAddress, remotePort, via, cseq);
@@ -367,9 +398,26 @@ export class SIPServerService extends EventEmitter {
   }
 
   private allocateRTPPort(): number {
-    return Math.floor(
-      Math.random() * (this.rtpPortRange.max - this.rtpPortRange.min) + this.rtpPortRange.min
-    );
+    // Sequential allocation to avoid race conditions
+    const startPort = this.nextRTPPort;
+    do {
+      const port = this.nextRTPPort;
+      this.nextRTPPort++;
+      if (this.nextRTPPort > this.rtpPortRange.max) {
+        this.nextRTPPort = this.rtpPortRange.min;
+      }
+
+      if (!this.allocatedRTPPorts.has(port)) {
+        this.allocatedRTPPorts.add(port);
+        return port;
+      }
+    } while (this.nextRTPPort !== startPort);
+
+    throw new Error('Unable to allocate RTP port - all ports in use');
+  }
+
+  private freeRTPPort(port: number): void {
+    this.allocatedRTPPorts.delete(port);
   }
 
   getRTPHandler(callId: string): RTPAudioHandler | null {
@@ -536,6 +584,286 @@ export class SIPServerService extends EventEmitter {
     regex = new RegExp(`${key}=([^;\\s>]+)`, 'i');
     match = header.match(regex);
     return match ? match[1] : '';
+  }
+
+  /**
+   * Initiate an outbound SIP call
+   * Returns the call ID which can be used to track the call state
+   */
+  async initiateOutboundCall(options: OutboundCallOptions): Promise<string> {
+    const { toUri, fromDisplayName } = options;
+
+    // Generate call identifiers
+    const callId = `${Math.random().toString(36).substring(2)}@${this.localIP}`;
+    const fromTag = Math.random().toString(36).substring(2, 15);
+    const branch = `z9hG4bK${Math.random().toString(36).substring(2)}`;
+
+    // Allocate RTP port and create handler
+    const localRTPPort = this.allocateRTPPort();
+    const rtpHandler = new RTPAudioHandler(localRTPPort);
+    rtpHandler.setPayloadType(0); // Start with PCMU, can negotiate later
+    await rtpHandler.start();
+
+    const contactIP = this.advertisedIP || this.localIP;
+
+    // Create SDP offer
+    const sdp = this.createSDP(localRTPPort, contactIP, 0);
+
+    // Construct From and To URIs
+    const fromUri = `<sip:${this.username}@${this.domain}>`;
+    const fromHeader = fromDisplayName
+      ? `"${fromDisplayName}" ${fromUri};tag=${fromTag}`
+      : `${fromUri};tag=${fromTag}`;
+
+    const toHeader = `<${toUri}>`;
+
+    // Parse destination from toUri (extract domain and port)
+    const uriMatch = toUri.match(/sip:([^@]+)@([^:;>]+)(?::(\d+))?/);
+    if (!uriMatch) {
+      throw new Error(`Invalid SIP URI: ${toUri}`);
+    }
+    const [, , destDomain, destPortStr] = uriMatch;
+    const destPort = destPortStr ? parseInt(destPortStr) : 5060;
+
+    logger.info({ toUri, callId, fromTag, destDomain, destPort }, 'Initiating outbound call');
+
+    // Create INVITE message
+    const inviteMessage =
+      `INVITE ${toUri} SIP/2.0\r\n` +
+      `Via: SIP/2.0/UDP ${this.localIP}:${this.sipPort};branch=${branch}\r\n` +
+      `From: ${fromHeader}\r\n` +
+      `To: ${toHeader}\r\n` +
+      `Call-ID: ${callId}\r\n` +
+      `CSeq: 1 INVITE\r\n` +
+      `Contact: <sip:${this.username}@${contactIP}:${this.sipPort}>\r\n` +
+      `Max-Forwards: 70\r\n` +
+      `User-Agent: VoiceAgent/1.0\r\n` +
+      `Content-Type: application/sdp\r\n` +
+      `Content-Length: ${sdp.length}\r\n` +
+      `\r\n` +
+      sdp;
+
+    // Store call in calling state
+    const call: SIPCall = {
+      callId,
+      from: fromHeader,
+      to: toHeader,
+      rtpHandler,
+      remoteAddress: destDomain,
+      remotePort: destPort,
+      tag: fromTag,
+      direction: 'outbound',
+      state: 'calling'
+    };
+    this.activeCalls.set(callId, call);
+
+    // Send INVITE
+    this.sendRaw(inviteMessage, destDomain, destPort);
+    logger.info({ callId }, 'INVITE sent for outbound call');
+
+    return callId;
+  }
+
+  /**
+   * Handle INVITE response (100 Trying, 180 Ringing, 200 OK, 407 Auth, etc.)
+   */
+  private async handleInviteResponse(message: string, remoteAddress: string, remotePort: number): Promise<void> {
+    const callId = this.extractHeader(message, 'Call-ID');
+    const call = this.activeCalls.get(callId);
+
+    if (!call || call.direction !== 'outbound') {
+      logger.warn({ callId }, 'INVITE response for unknown outbound call');
+      return;
+    }
+
+    const statusMatch = message.match(/^SIP\/2\.0\s+(\d+)\s+(.+)$/m);
+    if (!statusMatch) {
+      logger.warn('Invalid SIP response format');
+      return;
+    }
+
+    const statusCode = parseInt(statusMatch[1]);
+    const statusText = statusMatch[2];
+
+    logger.info({ callId, statusCode, statusText }, 'Received INVITE response');
+
+    if (statusCode === 100) {
+      // 100 Trying - do nothing, just wait
+      logger.debug({ callId }, '100 Trying received');
+    } else if (statusCode === 407) {
+      // 407 Proxy Authentication Required - retry with auth
+      logger.info({ callId }, 'INVITE requires proxy authentication, retrying...');
+      await this.retryInviteWithAuth(message, call);
+    } else if (statusCode === 180 || statusCode === 183) {
+      // 180 Ringing or 183 Session Progress
+      call.state = 'ringing';
+      logger.info({ callId }, 'Call ringing');
+      this.emit('callRinging', { callId });
+    } else if (statusCode === 200) {
+      // 200 OK - Call answered
+      call.state = 'established';
+
+      // Parse SDP from response
+      const sdpStart = message.indexOf('\r\n\r\n') + 4;
+      const sdpBody = message.substring(sdpStart);
+
+      // Parse remote RTP port and IP from SDP
+      const audioMatch = sdpBody.match(/m=audio\s+(\d+)/);
+      const remoteRTPPort = audioMatch ? parseInt(audioMatch[1]) : 0;
+
+      const connectionMatch = sdpBody.match(/c=IN IP4 ([\d.]+)/);
+      const remoteRTPAddress = connectionMatch ? connectionMatch[1] : remoteAddress;
+
+      // Determine codec from SDP answer
+      const offersPCMA = /a=rtpmap:8\s+PCMA\/8000/i.test(sdpBody);
+      const selectedPayloadType = offersPCMA ? 8 : 0;
+
+      logger.info({ callId, remoteRTPPort, remoteRTPAddress, selectedPayloadType }, 'Call answered, setting up RTP');
+
+      // Update RTP handler with remote endpoint
+      call.rtpHandler.setRemoteEndpoint(remoteRTPAddress, remoteRTPPort);
+      call.rtpHandler.setPayloadType(selectedPayloadType);
+
+      // Extract To tag for dialog tracking
+      const to = this.extractHeader(message, 'To');
+      const toTagMatch = to.match(/tag=([^;>]+)/);
+      const toTag = toTagMatch ? toTagMatch[1] : '';
+
+      // Send ACK to complete the call setup
+      const via = this.extractHeader(message, 'Via');
+      const from = this.extractHeader(message, 'From');
+      const cseq = this.extractHeader(message, 'CSeq');
+      const cseqNum = cseq.match(/^(\d+)/)?.[1] || '1';
+
+      const ackMessage =
+        `ACK ${call.to.match(/<(.+)>/)?.[1] || call.to} SIP/2.0\r\n` +
+        `Via: SIP/2.0/UDP ${this.localIP}:${this.sipPort};branch=z9hG4bK${Math.random().toString(36).substring(2)}\r\n` +
+        `From: ${call.from}\r\n` +
+        `To: ${to}\r\n` +
+        `Call-ID: ${callId}\r\n` +
+        `CSeq: ${cseqNum} ACK\r\n` +
+        `Max-Forwards: 70\r\n` +
+        `Content-Length: 0\r\n\r\n`;
+
+      this.sendRaw(ackMessage, call.remoteAddress, call.remotePort);
+      logger.info({ callId }, 'ACK sent, call established');
+
+      // Emit call started event
+      this.emit('callStarted', { callId, rtpHandler: call.rtpHandler });
+    } else if (statusCode >= 400) {
+      // Error response
+      logger.error({ callId, statusCode, statusText }, 'Call failed');
+      call.state = 'terminated';
+      const rtpPort = call.rtpHandler.getLocalPort();
+      await call.rtpHandler.stop();
+      this.freeRTPPort(rtpPort);
+      this.activeCalls.delete(callId);
+      this.emit('callFailed', { callId, statusCode, statusText });
+    } else {
+      // Other provisional responses (1xx)
+      logger.debug({ callId, statusCode, statusText }, 'Provisional response');
+    }
+  }
+
+  /**
+   * Send BYE to terminate an active call
+   */
+  async terminateCall(callId: string): Promise<void> {
+    const call = this.activeCalls.get(callId);
+    if (!call) {
+      logger.warn({ callId }, 'Cannot terminate unknown call');
+      return;
+    }
+
+    const cseq = call.direction === 'outbound' ? 2 : 1;
+    const branch = `z9hG4bK${Math.random().toString(36).substring(2)}`;
+
+    const byeMessage =
+      `BYE ${call.to.match(/<(.+)>/)?.[1] || call.to} SIP/2.0\r\n` +
+      `Via: SIP/2.0/UDP ${this.localIP}:${this.sipPort};branch=${branch}\r\n` +
+      `From: ${call.from}\r\n` +
+      `To: ${call.to}\r\n` +
+      `Call-ID: ${callId}\r\n` +
+      `CSeq: ${cseq} BYE\r\n` +
+      `Max-Forwards: 70\r\n` +
+      `Content-Length: 0\r\n\r\n`;
+
+    this.sendRaw(byeMessage, call.remoteAddress, call.remotePort);
+    logger.info({ callId }, 'BYE sent to terminate call');
+
+    call.state = 'terminated';
+    const rtpPort = call.rtpHandler.getLocalPort();
+    await call.rtpHandler.stop();
+    this.freeRTPPort(rtpPort);
+    this.activeCalls.delete(callId);
+    this.emit('callEnded', { callId });
+  }
+
+  /**
+   * Retry INVITE with Proxy Authentication
+   */
+  private async retryInviteWithAuth(response: string, call: SIPCall): Promise<void> {
+    // Extract Proxy-Authenticate header
+    const proxyAuth = this.extractHeader(response, 'Proxy-Authenticate');
+    const realm = this.extractParameter(proxyAuth, 'realm');
+    const nonce = this.extractParameter(proxyAuth, 'nonce');
+
+    if (!realm || !nonce) {
+      logger.error({ callId: call.callId }, 'Missing realm or nonce in Proxy-Authenticate');
+      return;
+    }
+
+    logger.info({ callId: call.callId, realm }, 'Retrying INVITE with proxy authentication');
+
+    // Extract original To URI
+    const toUriMatch = call.to.match(/<(.+)>/);
+    const toUri = toUriMatch ? toUriMatch[1] : call.to;
+
+    // Calculate digest response
+    const response_digest = this.calculateDigestResponse('INVITE', toUri, realm, nonce);
+
+    // Create authorization header
+    const authHeader =
+      `Digest username="${this.username}", ` +
+      `realm="${realm}", ` +
+      `nonce="${nonce}", ` +
+      `uri="${toUri}", ` +
+      `response="${response_digest}", ` +
+      `algorithm=MD5`;
+
+    // Create new branch for retry
+    const branch = `z9hG4bK${Math.random().toString(36).substring(2)}`;
+    const contactIP = this.advertisedIP || this.localIP;
+
+    // Get SDP from RTP handler
+    const sdp = this.createSDP(call.rtpHandler.getLocalPort(), contactIP, 0);
+
+    // Create authenticated INVITE
+    const inviteMessage =
+      `INVITE ${toUri} SIP/2.0\r\n` +
+      `Via: SIP/2.0/UDP ${this.localIP}:${this.sipPort};branch=${branch}\r\n` +
+      `From: ${call.from}\r\n` +
+      `To: ${call.to}\r\n` +
+      `Call-ID: ${call.callId}\r\n` +
+      `CSeq: 2 INVITE\r\n` +
+      `Contact: <sip:${this.username}@${contactIP}:${this.sipPort}>\r\n` +
+      `Proxy-Authorization: ${authHeader}\r\n` +
+      `Max-Forwards: 70\r\n` +
+      `User-Agent: VoiceAgent/1.0\r\n` +
+      `Content-Type: application/sdp\r\n` +
+      `Content-Length: ${sdp.length}\r\n` +
+      `\r\n` +
+      sdp;
+
+    this.sendRaw(inviteMessage, call.remoteAddress, call.remotePort);
+    logger.info({ callId: call.callId }, 'Authenticated INVITE sent');
+  }
+
+  /**
+   * Get call state
+   */
+  getCallState(callId: string): string | null {
+    return this.activeCalls.get(callId)?.state || null;
   }
 
   async stop(): Promise<void> {

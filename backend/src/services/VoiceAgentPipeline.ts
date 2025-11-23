@@ -5,9 +5,35 @@ import { TTSProvider } from '../providers/TTSProvider';
 import { RTPAudioHandler } from './RTPAudioHandler';
 import { logger } from '../utils/logger';
 
+export interface PipelineOptions {
+  /**
+   * If true, only transcribe audio without LLM/TTS responses
+   * Useful for passive monitoring/transcription of calls
+   */
+  listenOnlyMode?: boolean;
+
+  /**
+   * Speaker identifier for transcription events (e.g., 'customer', 'agent')
+   */
+  speakerLabel?: string;
+
+  /**
+   * Custom system prompt for the LLM
+   * If not provided, uses default agent prompt
+   */
+  systemPrompt?: string;
+
+  /**
+   * If true, skip sending the initial greeting
+   * Useful for customer-side pipelines that should wait for agent greeting
+   */
+  skipGreeting?: boolean;
+}
+
 /**
  * Voice Agent Pipeline
  * Orchestrates the STT → LLM → TTS flow with Voice Activity Detection
+ * Can also run in listen-only mode for passive transcription
  */
 export class VoiceAgentPipeline extends EventEmitter {
   private sttProvider: STTProvider;
@@ -15,6 +41,7 @@ export class VoiceAgentPipeline extends EventEmitter {
   private ttsProvider: TTSProvider;
   private rtpHandler: RTPAudioHandler;
   private callId: string;
+  private options: PipelineOptions;
 
   private conversationHistory: Message[] = [];
   private audioBuffer: Buffer = Buffer.alloc(0);
@@ -34,7 +61,8 @@ export class VoiceAgentPipeline extends EventEmitter {
     rtpHandler: RTPAudioHandler,
     sttProvider: STTProvider,
     llmProvider: LLMProvider,
-    ttsProvider: TTSProvider
+    ttsProvider: TTSProvider,
+    options: PipelineOptions = {}
   ) {
     super();
     this.callId = callId;
@@ -42,26 +70,36 @@ export class VoiceAgentPipeline extends EventEmitter {
     this.sttProvider = sttProvider;
     this.llmProvider = llmProvider;
     this.ttsProvider = ttsProvider;
+    this.options = options;
   }
 
   /**
    * Start the voice agent pipeline
    */
   async start(): Promise<void> {
-    logger.info({ callId: this.callId }, 'Starting voice agent pipeline');
-
-    // Set system prompt
-    this.conversationHistory.push({
-      role: 'system',
-      content: `Du bist ein freundlicher Kundenservice-Agent des Stadtwerks.
-Du hilfst Kunden bei Fragen zu ihren Zählerständen und Energieverbrauch.
-Halte deine Antworten kurz und präzise (max 2-3 Sätze).
-Sprich auf Deutsch.`
-    });
+    const mode = this.options.listenOnlyMode ? 'listen-only' : 'interactive';
+    logger.info({ callId: this.callId, mode, speaker: this.options.speakerLabel }, 'Starting voice agent pipeline');
 
     // Listen for incoming audio
     this.rtpHandler.on('audio', (audioData: Buffer) => {
       this.handleIncomingAudio(audioData);
+    });
+
+    // In listen-only mode, skip greeting and LLM setup
+    if (this.options.listenOnlyMode) {
+      logger.info({ callId: this.callId }, 'Pipeline in listen-only mode: only transcribing');
+      return;
+    }
+
+    // Interactive mode: Set system prompt
+    const systemPrompt = this.options.systemPrompt || `Du bist ein freundlicher Kundenservice-Agent des Stadtwerks.
+Du hilfst Kunden bei Fragen zu ihren Zählerständen und Energieverbrauch.
+Halte deine Antworten kurz und präzise (max 2-3 Sätze).
+Sprich auf Deutsch.`;
+
+    this.conversationHistory.push({
+      role: 'system',
+      content: systemPrompt
     });
 
     // Send a short burst of silence immediately to open RTP path
@@ -69,8 +107,10 @@ Sprich auf Deutsch.`
       logger.warn({ callId: this.callId, error: err }, 'Failed to send RTP priming silence');
     });
 
-    // Send greeting
-    await this.sendGreeting();
+    // Send greeting (unless skipped)
+    if (!this.options.skipGreeting) {
+      await this.sendGreeting();
+    }
   }
 
   /**
@@ -89,26 +129,37 @@ Sprich auf Deutsch.`
     // ALWAYS buffer incoming audio (full-duplex)
     this.audioBuffer = Buffer.concat([this.audioBuffer, audioData]);
 
-    // If agent is speaking, check for interrupt
-    if (this.isSpeaking) {
-      // Only allow interrupts after cooldown period (prevents false positives from audio during TTS generation)
-      const timeSpoken = Date.now() - this.speakingStartTime;
-      if (timeSpoken < this.INTERRUPT_COOLDOWN_MS) {
-        return; // Still in cooldown period, ignore interrupt attempts
-      }
-
-      // If user speaks for 1 second while agent talks, interrupt
-      if (this.audioBuffer.length >= this.INTERRUPT_THRESHOLD) {
-        logger.info({ callId: this.callId, bufferSize: this.audioBuffer.length }, 'User interrupting agent');
-        this.shouldInterrupt = true;
-        // Don't process yet - let speak() finish naturally, then process
-      }
-      return;
+    // DEBUG: Log every 50 packets to see if audio is arriving
+    const packetCount = Math.floor(this.audioBuffer.length / 320);
+    if (packetCount % 50 === 0 && packetCount > 0) {
+      logger.info({
+        callId: this.callId,
+        bufferBytes: this.audioBuffer.length,
+        bufferSeconds: (this.audioBuffer.length / (this.SAMPLE_RATE * 2)).toFixed(2),
+        isSpeaking: this.isSpeaking,
+        isProcessing: this.isProcessing
+      }, '📊 Agent pipeline audio buffer status');
     }
 
     // Don't process while already processing
     if (this.isProcessing) {
       return;
+    }
+
+    // Check for interrupt if agent is speaking
+    if (this.isSpeaking) {
+      // Only allow interrupts after cooldown period (prevents false positives from audio during TTS generation)
+      const timeSpoken = Date.now() - this.speakingStartTime;
+      if (timeSpoken >= this.INTERRUPT_COOLDOWN_MS) {
+        // If user speaks for 3 seconds while agent talks, trigger interrupt
+        if (this.audioBuffer.length >= this.INTERRUPT_THRESHOLD) {
+          logger.info({ callId: this.callId, bufferSize: this.audioBuffer.length }, 'User interrupting agent');
+          this.shouldInterrupt = true;
+          // Don't process yet - let speak() finish naturally, then process
+          return;
+        }
+      }
+      // NOTE: We don't return here! Agent can still listen while speaking (full-duplex)
     }
 
     // VAD: Check if we have enough audio (2 seconds)
@@ -148,13 +199,41 @@ Sprich auf Deutsch.`
         return;
       }
 
-      logger.info({ callId: this.callId, transcription }, 'User said');
+      logger.info({
+        callId: this.callId,
+        transcription,
+        speaker: this.options.speakerLabel || 'user'
+      }, 'Transcribed speech');
+
+      // Emit transcription event for external consumers (e.g., dashboard, CSV storage)
+      this.emit('transcription', {
+        callId: this.callId,
+        speaker: this.options.speakerLabel || 'user',
+        text: transcription,
+        timestamp: new Date()
+      });
+
+      // In listen-only mode, skip LLM and TTS
+      if (this.options.listenOnlyMode) {
+        this.isProcessing = false;
+        return;
+      }
+
+      // Interactive mode: Continue with LLM and TTS
       this.conversationHistory.push({ role: 'user', content: transcription });
 
       // Get LLM response
       const response = await this.llmProvider.generateResponse(this.conversationHistory);
       logger.info({ callId: this.callId, response }, 'Agent responds');
       this.conversationHistory.push({ role: 'assistant', content: response });
+
+      // Emit event when agent responds (before speaking)
+      this.emit('agentResponse', {
+        callId: this.callId,
+        speaker: this.options.speakerLabel || 'assistant',
+        text: response,
+        timestamp: new Date()
+      });
 
       // Speak response
       await this.speak(response);

@@ -12,7 +12,9 @@
     "test:contract": "jest --testPathPattern=contract",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:b2bua": "tsx src/test/b2bua-test.ts",
+    "test:b2bua:simple": "tsx src/test/b2bua-simple-test.ts"
   },
   "keywords": [
     "voice",
