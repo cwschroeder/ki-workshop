@@ -5,11 +5,18 @@ Nummerierte Test-Skripte für die IVU Voice API. Jeder Test demonstriert verschi
 ## 📋 Voraussetzungen
 
 1. **Umgebungsvariable setzen**: Kopiere `.env.example` zu `.env` und trage deine Telefonnummer ein:
+
+   **macOS/Linux:**
    ```bash
-   cd workshop
    cp .env.example .env
-   # Editiere .env und setze: PHONE_NUMBER=+49...
    ```
+
+   **Windows:**
+   ```cmd
+   copy .env.example .env
+   ```
+
+   Editiere `.env` und setze: `PHONE_NUMBER=+49...`
 
 2. **Dependencies installieren**:
    ```bash

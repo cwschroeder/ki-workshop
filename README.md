@@ -34,16 +34,29 @@ Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Vo
 ### 1. Setup
 
 ```bash
-cd workshop
 npm install
 ```
 
 ### 2. Umgebungsvariable konfigurieren
 
+**macOS/Linux:**
 ```bash
 cp .env.example .env
-# Editiere .env und setze deine Telefonnummer:
-# PHONE_NUMBER=+4940...
+```
+
+**Windows (PowerShell):**
+```powershell
+copy .env.example .env
+```
+
+**Windows (CMD):**
+```cmd
+copy .env.example .env
+```
+
+Editiere `.env` und setze deine Telefonnummer:
+```
+PHONE_NUMBER=+4940...
 ```
 
 ### 3. Erstes Test-Skript starten
