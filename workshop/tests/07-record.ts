@@ -25,7 +25,8 @@
  * 5. Call session.retrieveRecording({ recordingUuid }) to download
  */
 
-import { createVoiceSession } from './lib/ivu-voice-client';
+import 'dotenv/config';
+import { createVoiceSession } from '../lib/ivu-voice-client';
 import * as fs from 'fs/promises';
 
 async function main() {
@@ -33,13 +34,24 @@ async function main() {
 
   // Create session
   const session = await createVoiceSession({
-    serverUrl: 'http://localhost:3000'
+    // serverUrl is used from lib/ivu-voice-client.ts default: wss://mqtt.ivu-software.de:443
   });
 
   console.log('Session erstellt!\n');
 
-  // Assign phone number
-  const phoneNumber = '+494042237908'; // Your Rufnummer
+  // Assign phone number (required from environment)
+  const phoneNumber = process.env.PHONE_NUMBER;
+  if (!phoneNumber) {
+    console.error('❌ ERROR: PHONE_NUMBER environment variable is not set!');
+    console.error('');
+    console.error('Please set your phone number:');
+    console.error('  1. Copy .env.example to .env');
+    console.error('  2. Edit .env and set PHONE_NUMBER=+49...');
+    console.error('  3. Run the script again');
+    console.error('');
+    process.exit(1);
+  }
+
   await session.assignPhoneNumber(phoneNumber);
 
   console.log(`Rufnummer zugewiesen: ${phoneNumber}`);

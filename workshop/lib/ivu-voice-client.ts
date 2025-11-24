@@ -4,7 +4,6 @@
  * Verbindet sich mit dem IVU Voice API Server und ermöglicht
  * einfache Steuerung von Voice-Calls über WebSocket.
  *
- * Workshop-Teilnehmer nutzen nur diese Datei - der Server läuft bei IVU.
  */
 
 import { io, Socket } from 'socket.io-client';

@@ -18,14 +18,15 @@
  * 3. Update ProviderFactory to pass these credentials to IVU Provider
  */
 
-import { createVoiceSession } from './lib/ivu-voice-client';
+import 'dotenv/config';
+import { createVoiceSession } from '../lib/ivu-voice-client';
 
 async function main() {
   console.log('=== IVU Voice API SMS API Test ===\n');
 
   // Create session
   const session = await createVoiceSession({
-    serverUrl: 'http://localhost:3000'
+    // serverUrl is used from lib/ivu-voice-client.ts default: wss://mqtt.ivu-software.de:443
   });
 
   console.log('Session erstellt!\n');

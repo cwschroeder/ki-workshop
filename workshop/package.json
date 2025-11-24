@@ -18,8 +18,9 @@
   "author": "IVU Traffic Technologies AG",
   "license": "MIT",
   "dependencies": {
-    "socket.io-client": "^4.6.0",
-    "csv-parse": "^5.5.3"
+    "csv-parse": "^5.5.3",
+    "dotenv": "^17.2.3",
+    "socket.io-client": "^4.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
