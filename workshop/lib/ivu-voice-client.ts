@@ -18,10 +18,13 @@ export interface VoiceSessionOptions {
   serverUrl?: string;
   /** Optional: User ID für Tracking */
   userId?: string;
+  /** Optional: API Key für Authentifizierung */
+  apiKey?: string;
 }
 
 export interface CallHandle {
   callId: string;
+  callUuid?: string;
   sessionId: string;
 
   /** Text aussprechen (Text-to-Speech) */
@@ -33,11 +36,17 @@ export interface CallHandle {
   /** DTMF-Ziffern sammeln */
   collectDigits(options: { maxDigits: number; prompt?: string }): Promise<string>;
 
-  /** Anruf weiterleiten */
+  /** Anruf weiterleiten (Bridge) */
+  bridge(destination: string, options?: { destinationType?: string; timeout?: number }): Promise<void>;
+
+  /** Anruf weiterleiten (Legacy) */
   transfer(destination: string): Promise<void>;
 
   /** Anruf beenden */
   hangup(message?: string): Promise<void>;
+
+  /** Vordefinierte Ansage abspielen */
+  playAnnouncement(announcementName: string): Promise<void>;
 
   /** KI-Konversation führen */
   aiConversation(options: {
@@ -61,17 +70,20 @@ export class VoiceSession extends EventEmitter {
   constructor(options: VoiceSessionOptions = {}) {
     super();
     // Standard: IVU-Server (wird im Workshop bereitgestellt)
-    this.serverUrl = options.serverUrl || 'ws://voice-api.ivu.de';
+    this.serverUrl = options.serverUrl || 'wss://mqtt.ivu-software.de:443';
   }
 
   /** Session starten (verbindet mit IVU-Server) */
-  async start(): Promise<void> {
+  async start(options?: VoiceSessionOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       console.log(`📡 Verbinde mit IVU Voice API: ${this.serverUrl}`);
 
       this.socket = io(this.serverUrl, {
         transports: ['websocket'],
-        reconnection: true
+        reconnection: true,
+        auth: {
+          apiKey: options?.apiKey || process.env.IVU_AI_APIKEY
+        }
       });
 
       this.socket.on('connect', () => {
@@ -130,6 +142,113 @@ export class VoiceSession extends EventEmitter {
     });
   }
 
+  /** Ausgehenden Anruf tätigen */
+  async makeCall(options: {
+    destinationNumber: string;
+    teniosNumber: string;
+    callerId?: string;
+  }): Promise<{ callbackId: number }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('call.make', options, (response: any) => {
+        if (response.error) reject(new Error(response.error));
+        else {
+          console.log(`📞 Ausgehender Anruf initiiert: ID ${response.callbackId}`);
+          resolve({ callbackId: response.callbackId });
+        }
+      });
+    });
+  }
+
+  /** SMS senden */
+  async sendSMS(options: {
+    from: string;
+    to: string;
+    text: string;
+    tag?: string;
+  }): Promise<{ messageUri: string; status: number }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('sms.send', options, (response: any) => {
+        if (response.error) reject(new Error(response.error));
+        else {
+          console.log(`📱 SMS gesendet an: ${options.to}`);
+          resolve({ messageUri: response.messageUri, status: response.status });
+        }
+      });
+    });
+  }
+
+  /** Anrufaufzeichnung starten */
+  async startRecording(options: {
+    callUuid: string;
+    recordCaller?: boolean;
+    recordCallee?: boolean;
+  }): Promise<{ recordingUuid: string }> {
+    console.log('[CLIENT] startRecording() called with options:', options);
+
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        console.error('[CLIENT] Socket is null!');
+        reject(new Error('Socket not connected'));
+        return;
+      }
+
+      console.log('[CLIENT] Socket exists:', {
+        connected: this.socket.connected,
+        id: this.socket.id
+      });
+
+      const timeout = setTimeout(() => {
+        console.error('[CLIENT] Recording start timeout after 10s');
+        reject(new Error('Recording start timeout'));
+      }, 10000);
+
+      console.log('[CLIENT] About to emit recording.start event...');
+      this.socket.emit('recording.start', options, (response: any) => {
+        console.log('[CLIENT] Callback received! Response:', response);
+        clearTimeout(timeout);
+        if (response.error) reject(new Error(response.error));
+        else {
+          console.log(`🔴 Aufzeichnung gestartet: ${response.recordingUuid}`);
+          resolve({ recordingUuid: response.recordingUuid });
+        }
+      });
+      console.log('[CLIENT] emit() called, waiting for callback...');
+    });
+  }
+
+  /** Anrufaufzeichnung stoppen */
+  async stopRecording(options: {
+    callUuid: string;
+    recordingUuid: string;
+  }): Promise<{ success: boolean }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('recording.stop', options, (response: any) => {
+        if (response.error) reject(new Error(response.error));
+        else {
+          console.log(`⏹️  Aufzeichnung gestoppt: ${options.recordingUuid}`);
+          resolve({ success: response.success });
+        }
+      });
+    });
+  }
+
+  /** Anrufaufzeichnung abrufen */
+  async retrieveRecording(options: {
+    recordingUuid: string;
+  }): Promise<{ data: Buffer; contentType: string }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('recording.retrieve', options, (response: any) => {
+        if (response.error) reject(new Error(response.error));
+        else {
+          console.log(`📥 Aufzeichnung abgerufen: ${options.recordingUuid}`);
+          // Convert base64 back to Buffer
+          const buffer = Buffer.from(response.data, 'base64');
+          resolve({ data: buffer, contentType: response.contentType });
+        }
+      });
+    });
+  }
+
   /** Kunde in CSV nachschlagen */
   async lookupCustomer(customerNumber: string): Promise<any> {
     const csvPath = path.join(__dirname, '../workshop-data/customers.csv');
@@ -157,6 +276,7 @@ export class VoiceSession extends EventEmitter {
   private createCallHandle(callData: any): CallHandle {
     return {
       callId: callData.callId,
+      callUuid: callData.callUuid,
       sessionId: callData.sessionId,
 
       say: async (text: string) => {
@@ -181,12 +301,25 @@ export class VoiceSession extends EventEmitter {
         });
       },
 
+      bridge: async (destination: string, options = {}) => {
+        await this.sendAction({
+          type: 'bridge',
+          destination,
+          destinationType: options.destinationType || 'SIP_USER',
+          timeout: options.timeout || 30
+        });
+      },
+
       transfer: async (destination: string) => {
         await this.sendAction({ type: 'transfer', destination });
       },
 
       hangup: async (message?: string) => {
         await this.sendAction({ type: 'hangup', message });
+      },
+
+      playAnnouncement: async (announcementName: string) => {
+        await this.sendAction({ type: 'play_announcement', announcementName });
       },
 
       aiConversation: async (options) => {

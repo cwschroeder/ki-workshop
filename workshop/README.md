@@ -4,7 +4,7 @@ Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Vo
 
 ## 🎯 Was Sie lernen werden
 
-- **Voice-Anwendungen** mit TENIOS Call Control API erstellen
+- **Voice-Anwendungen** mit IVU Voice API erstellen
 - **Spracheingabe (ASR)** und **Text-to-Speech (TTS)** nutzen
 - **KI-gestützte Gespräche** mit OpenAI/lokalen LLMs implementieren
 - **DTMF-Menüs** und **Call-Routing** aufbauen
@@ -15,7 +15,7 @@ Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Vo
 
 - **Node.js 20+** installiert
 - **npm** oder **yarn**
-- **TENIOS API-Key** (wird im Workshop bereitgestellt)
+- **IVU Voice API-Key** (wird im Workshop bereitgestellt)
 - **OpenAI API-Key** (optional, für KI-Features)
 - Ein **SIP-Client** oder **Telefon** zum Testen
 
@@ -78,7 +78,7 @@ const choice = await call.collectDigits({
 if (choice === '1') {
   // Zählerstand-Flow
 } else if (choice === '2') {
-  await call.transfer('sip:agent@tenios.com');
+  await call.transfer('sip:agent@ivu.de');
 }
 ```
 
@@ -308,7 +308,7 @@ Dann können Sie diese Nummer anrufen und Ihre Anwendung testen!
 
 ## 📖 Weiterführende Ressourcen
 
-- **TENIOS Call Control API:** https://www.tenios.de/doc/external-call-control-api
+- **IVU Voice API Documentation:** Contact IVU for API documentation
 - **OpenAI API Docs:** https://platform.openai.com/docs
 - **Socket.io Docs:** https://socket.io/docs/v4
 - **TypeScript Handbook:** https://www.typescriptlang.org/docs
@@ -318,7 +318,7 @@ Dann können Sie diese Nummer anrufen und Ihre Anwendung testen!
 Bei Fragen während des Workshops:
 - **Instructor fragen** (präsent)
 - **GitHub Issues:** https://github.com/ivu/voice-workshop/issues
-- **TENIOS Support:** support@tenios.de
+- **IVU Voice API Support:** Contact IVU support
 
 ## 📝 Lizenz
 

@@ -4,7 +4,7 @@
  * Verwendung:
  *   1. IVU Voice API Server lokal starten
  *   2. Dieses Script ausführen: npx tsx test-client.ts
- *   3. TENIOS-Nummer anrufen
+ *   3. Rufnummer anrufen
  */
 
 import { createVoiceSession } from './lib/ivu-voice-client';
@@ -26,7 +26,7 @@ async function main() {
     // Rufnummer zuweisen
     console.log('\n📞 Assigning phone number...');
 
-    // TENIOS Test-Rufnummer
+    // Test-Rufnummer
     const phoneNumber = '+494042237908';
 
     await session.assignPhoneNumber(phoneNumber);
@@ -38,7 +38,7 @@ async function main() {
     console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
     console.log('\n📋 Was passiert:');
     console.log('   1. Sie rufen die Nummer an');
-    console.log('   2. TENIOS sendet Webhook an lokalen Server');
+    console.log('   2. API sendet API webhook an lokalen Server');
     console.log('   3. Server routet Call zu dieser Session');
     console.log('   4. Dieser Client empfängt call.incoming Event');
     console.log('   5. Client antwortet mit SAY + HANGUP');
@@ -61,7 +61,11 @@ async function main() {
 
         // Schritt 1: Begrüßung
         console.log('   [1/3] Saying hello...');
-        await call.say('Hallo! Willkommen beim IVU Voice API Test.');
+        await call.say('Hallo! Willkommen beim IVU Voice API Test.'
+          // Optional parameters:
+          // { voice: 'de.female.2' }  // Voice name (default: de.female.2)
+          // { useSsml: false }         // Use SSML markup (default: false)
+        );
 
         // Schritt 2: Status
         console.log('   [2/3] Confirming test...');

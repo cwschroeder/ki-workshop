@@ -1,7 +1,7 @@
 {
   "name": "ivu-voice-workshop",
   "version": "1.0.0",
-  "description": "IVU Voice API Workshop - Lerne Voice-Anwendungen mit TENIOS zu entwickeln",
+  "description": "IVU Voice API Workshop - Lerne Voice-Anwendungen zu entwickeln",
   "main": "index.js",
   "scripts": {
     "example:01": "tsx examples/01-hello-world.ts",
@@ -11,7 +11,7 @@
   },
   "keywords": [
     "voice",
-    "tenios",
+    "ivu-voice",
     "workshop",
     "ivu"
   ],
