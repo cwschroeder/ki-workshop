@@ -178,6 +178,21 @@ Lernen Sie:
 npx tsx tests/09-sendsms-REQUIRES-ACTIVATION.ts
 ```
 
+#### Test 10: Chat API - KI-gestützte Konversationen (15 min)
+**Datei:** `tests/10-chat-api.ts`
+
+Lernen Sie:
+- Die `chat()` API für KI-gestützte Dialoge verwenden
+- Spracheingabe mit KI-Verarbeitung kombinieren
+- Validierung und Datenextraktion durchführen
+- System-Prompts für verschiedene Szenarien gestalten
+
+```bash
+npx tsx tests/10-chat-api.ts
+```
+
+💡 **Tipp:** Dies ist die wichtigste API für den Zählerstand-Bot in Teil 2!
+
 ### Teil 2: Praxis-Projekt Zählerstandserfassung (120 min)
 
 Im zweiten Teil bauen Sie einen vollständigen Voice-Bot zur Zählerstandserfassung. Das Projekt kombiniert alle gelernten Funktionen mit praktischen Anforderungen.
