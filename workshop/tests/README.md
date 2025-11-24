@@ -161,6 +161,38 @@ Eine Test-SMS wird an die konfigurierte Nummer gesendet.
 
 ---
 
+### Test 10: Chat API - KI-gestützte Konversationen (20 min)
+```bash
+npx tsx tests/10-chat-api.ts
+```
+
+**Was Sie lernen:**
+- Die `chat()` API für KI-gestützte Dialoge verwenden
+- Spracheingabe mit KI-Verarbeitung kombinieren
+- Validierung und Datenextraktion durchführen
+- System-Prompts für verschiedene Szenarien gestalten
+
+**Erwartetes Ergebnis:**
+Der Bot führt eine mehrstufige Konversation:
+1. Fragt nach Ihrem Namen (mit Spracheingabe)
+2. Fragt nach Ihrer Lieblingsfarbe (mit Spracheingabe)
+3. Erstellt eine Zusammenfassung (ohne Spracheingabe)
+4. Demonstriert Zahlen-Validierung (1-100)
+
+**💡 Hinweis für Workshop-Teilnehmer:**
+Dieses Test-Skript zeigt alle Möglichkeiten der `chat()` API. Sie können diese API verwenden, um:
+- Einen Zählerstand-Bot zu entwickeln (siehe `src/meter-reading-bot.ts`)
+- Kundennummern zu erfragen und validieren
+- Zählerstände zu sammeln und speichern
+- Fehlerhafte Eingaben elegant zu behandeln
+
+Weitere nützliche Funktionen in `lib/ivu-voice-client.ts`:
+- `session.lookupCustomer(customerNumber)` - Kunde in CSV suchen
+- `session.saveMeterReading({ ... })` - Zählerstand speichern
+- `call.extractCustomerInfo(text)` - Informationen extrahieren
+
+---
+
 ## 💡 Tipps
 
 - **Paralleltests**: Jeder Teilnehmer kann seine eigene `.env` mit unterschiedlicher `PHONE_NUMBER` haben
