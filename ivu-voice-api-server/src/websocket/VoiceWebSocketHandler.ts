@@ -111,6 +111,81 @@ export class VoiceWebSocketHandler {
       }
     });
 
+    // Client requests to make an outbound call
+    socket.on('call.make', async (options: any, callback) => {
+      try {
+        console.log(`[WebSocket] Making outbound call: ${options.destinationNumber} (${sessionId})`);
+
+        const result = await this.voiceService.makeCall(options);
+        callback({ success: true, callbackId: result.id });
+      } catch (error) {
+        console.error('[WebSocket] Error making call:', error);
+        callback({ error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
+    // Client requests to send SMS
+    socket.on('sms.send', async (options: any, callback) => {
+      try {
+        console.log(`[WebSocket] Sending SMS to: ${options.to} (${sessionId})`);
+
+        const result = await this.voiceService.sendSMS(options);
+        callback({ success: true, messageUri: result.messageUri, status: result.status });
+      } catch (error) {
+        console.error('[WebSocket] Error sending SMS:', error);
+        callback({ error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
+    // Client requests to start call recording
+    console.log(`[WebSocket] Registering 'recording.start' handler for session ${sessionId}`);
+    socket.on('recording.start', async (options: any, callback) => {
+      try {
+        console.log(`[WebSocket] Recording.start event received! Options:`, options);
+        console.log(`[WebSocket] Starting recording for call: ${options.callUuid} (${sessionId})`);
+
+        const result = await this.voiceService.startRecording(options);
+        callback({ success: true, recordingUuid: result.recordingUuid });
+      } catch (error) {
+        console.error('[WebSocket] Error starting recording:', error);
+        callback({ error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
+    // Client requests to stop call recording
+    socket.on('recording.stop', async (options: any, callback) => {
+      try {
+        console.log(`[WebSocket] Stopping recording: ${options.recordingUuid} (${sessionId})`);
+
+        const result = await this.voiceService.stopRecording(options);
+        callback({ success: result.success });
+      } catch (error) {
+        console.error('[WebSocket] Error stopping recording:', error);
+        callback({ error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
+    // Client requests to retrieve call recording
+    socket.on('recording.retrieve', async (options: any, callback) => {
+      try {
+        console.log(`[WebSocket] Retrieving recording: ${options.recordingUuid} (${sessionId})`);
+
+        const result = await this.voiceService.retrieveRecording(options);
+
+        // Convert Buffer to base64 for transmission over WebSocket
+        const base64Data = result.data.toString('base64');
+
+        callback({
+          success: true,
+          data: base64Data,
+          contentType: result.contentType
+        });
+      } catch (error) {
+        console.error('[WebSocket] Error retrieving recording:', error);
+        callback({ error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    });
+
     // Ping/pong for keepalive
     socket.on('ping', (callback) => {
       this.sessionManager.updateActivity(sessionId);

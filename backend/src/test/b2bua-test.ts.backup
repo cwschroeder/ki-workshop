@@ -284,7 +284,16 @@ class B2BUATestManager {
           source: 'AGENT-SAGT'
         }, '🗣️  [AGENT SAGT] 💬');
 
-        // Record in transcript verifier (for test verification only, NOT WebSocket)
+        // Ingest into transcript update service for real-time updates
+        this.transcriptUpdates.ingest({
+          sessionId: this.currentSessionId,
+          speaker: 'agent',  // Agent is speaking
+          text: data.text,
+          timestamp: data.timestamp,
+          source: 'AGENT-SAGT'
+        });
+
+        // Record in transcript verifier
         if (this.transcriptVerifier) {
           this.transcriptVerifier.addTranscript({
             source: 'AGENT-SAGT',
@@ -335,22 +344,21 @@ class B2BUATestManager {
 
     // VAD Buffers for each leg (Voice Activity Detection)
     // Automatically detects speech pauses and emits complete utterances
-    // AGGRESSIVE settings for low-latency transcription with confidence filtering
     const legAVAD = new VADBuffer(sessionId, {
       sampleRate: 8000,
-      silenceThresholdDb: -40,        // -40dB threshold for silence
-      silenceDurationMs: 200,         // 200ms of silence = end of utterance (very responsive!)
-      minUtteranceDurationMs: 300,    // Minimum 300ms to avoid noise
-      maxUtteranceDurationMs: 5000    // 5s maximum (force flush for responsive transcription)
+      silenceThresholdDb: -40,     // -40dB threshold for silence
+      silenceDurationMs: 500,      // 500ms of silence = end of utterance
+      minUtteranceDurationMs: 500, // Minimum 500ms to avoid noise
+      maxUtteranceDurationMs: 10000 // Max 10 seconds (force flush)
     });
 
-    // Leg B (agent speech from customer's perspective)
+    // Leg B (agent speech) - more tolerant to pauses to avoid splitting TTS-generated speech
     const legBVAD = new VADBuffer(sessionId, {
       sampleRate: 8000,
-      silenceThresholdDb: -40,        // Same as Leg A for consistency
-      silenceDurationMs: 200,         // 200ms - very responsive transcription
-      minUtteranceDurationMs: 300,    // Minimum 300ms to avoid noise
-      maxUtteranceDurationMs: 5000    // 5s maximum (agent sentences are usually short)
+      silenceThresholdDb: -45,      // More sensitive threshold (-45dB instead of -40dB)
+      silenceDurationMs: 1500,      // 1.5s of silence to allow natural pauses between sentences
+      minUtteranceDurationMs: 500,  // Minimum 500ms to avoid noise
+      maxUtteranceDurationMs: 15000 // Max 15 seconds (longer for multi-sentence agent responses)
     });
 
     // Listen for complete utterances from Leg A (customer) VAD
@@ -458,9 +466,8 @@ class B2BUATestManager {
       logger.info({ callId }, '📞 CUSTOMER CALL ESTABLISHED');
 
       // Create voice pipeline for customer
-      // IMPORTANT: Customer pipeline is in LISTEN-ONLY mode because we manually control
-      // what the customer says via sendAudioInChunks(). This prevents the LLM from
-      // generating conflicting responses.
+      // IMPORTANT: speakerLabel identifies WHO IS SPEAKING (the remote party being heard)
+      // Customer pipeline hears the AGENT speaking, so speakerLabel = 'agent'
       this.customerPipeline = new VoiceAgentPipeline(
         callId,
         rtpHandler,
@@ -468,14 +475,15 @@ class B2BUATestManager {
         this.llmProvider,
         this.ttsProvider,
         {
-          listenOnlyMode: true, // Only transcribe, don't respond (manual TTS control)
-          speakerLabel: 'agent' // Customer hears the Agent speaking
+          listenOnlyMode: false, // Customer speaks interactively
+          speakerLabel: 'agent', // Customer hears the Agent speaking
+          systemPrompt: `Du bist ein Kunde des Stadtwerks.
+Du möchtest deinen Zählerstand melden.
+Antworte kurz und natürlich auf Deutsch (max 1-2 Sätze).
+Verhalte dich wie ein normaler Kunde am Telefon.`,
+          skipGreeting: true // Customer waits for agent to greet first
         }
       );
-
-      // Timeout-based turn detection: Customer speaks 500ms after agent finishes
-      let lastTranscriptionTime = Date.now();
-      let turnDetectionTimer: NodeJS.Timeout | null = null;
 
       // Listen for customer transcriptions (what customer hears from agent)
       this.customerPipeline.on('transcription', (data) => {
@@ -496,77 +504,138 @@ class B2BUATestManager {
           });
         }
 
-        // Reset turn detection timer on every transcription
-        lastTranscriptionTime = Date.now();
-        if (turnDetectionTimer) {
-          clearTimeout(turnDetectionTimer);
+        // Customer responds on turns (Turn 1: after hearing 'helfen', Turn 2: after response)
+        if (this.customerTurnCount === 0 && data.text.includes('helfen')) {
+          this.customerTurnCount++;
+          setTimeout(async () => {
+            const customerMessage = 'Ich möchte meinen Zählerstand melden';
+            logger.info({ text: customerMessage, turn: 1 }, '🗣️ Customer speaking (Turn 1)');
+
+            try {
+              // Generate TTS audio directly (returns PCM)
+              const audioBuffer = await this.ttsProvider.synthesize(customerMessage, 'de');
+
+              // Send via RTP in 20ms chunks (for VAD detection)
+              await this.sendAudioInChunks(rtpHandler, audioBuffer);
+
+              // Record the transcript manually since we're bypassing the pipeline
+              this.transcriptCount++;
+
+              // Record in transcript verifier (for test verification only, NOT WebSocket)
+              if (this.transcriptVerifier) {
+                this.transcriptVerifier.addTranscript({
+                  source: 'CUSTOMER-SAGT',
+                  speaker: 'customer',
+                  text: customerMessage
+                });
+              }
+              logger.info({ text: customerMessage, source: 'CUSTOMER-SAGT', turn: 1 }, '🗣️ [CUSTOMER SAGT] 💬 (Turn 1)');
+            } catch (error) {
+              logger.error({ error }, 'Failed to generate customer speech (Turn 1)');
+            }
+          }, 500); // Wait 500ms before responding
         }
 
-        // Wait 500ms after last transcription to trigger customer response
-        turnDetectionTimer = setTimeout(async () => {
-          if (this.customerTurnCount >= 3) return; // Max 3 turns
-
+        // Customer Turn 2: Responds again after agent's follow-up
+        if (this.customerTurnCount === 1 && (data.text.includes('Zählerstand') || data.text.includes('Zählernummer'))) {
           this.customerTurnCount++;
-          const turn = this.customerTurnCount;
+          setTimeout(async () => {
+            const customerMessage = 'Der Zählerstand ist 4782';
+            logger.info({ text: customerMessage, turn: 2 }, '🗣️ Customer speaking (Turn 2)');
 
-          let customerMessage = '';
-          if (turn === 1) {
-            customerMessage = 'Ich möchte meinen Zählerstand melden';
-          } else if (turn === 2) {
-            customerMessage = 'Der Zählerstand ist 4782';
-          } else if (turn === 3) {
-            customerMessage = 'Vielen Dank, auf Wiedersehen';
-          }
+            try {
+              // Generate TTS audio directly (returns PCM)
+              const audioBuffer = await this.ttsProvider.synthesize(customerMessage, 'de');
 
-          if (!customerMessage) return;
+              // Send via RTP in 20ms chunks (for VAD detection)
+              await this.sendAudioInChunks(rtpHandler, audioBuffer);
 
-          logger.info({ text: customerMessage, turn }, `🗣️ Customer speaking (Turn ${turn})`);
+              // Record the transcript manually
+              this.transcriptCount++;
 
-          try {
-            // WORKAROUND: OpenAI TTS → 8kHz PCM → Whisper STT doesn't work well
-            // (TTS audio gets garbled when transcribed back)
-            // Solution: Send the text directly to agent pipeline, bypassing TTS/STT roundtrip
-
-            // Send silence to simulate audio activity (triggers VAD, maintains RTP flow)
-            const silenceDuration = 2000; // 2 seconds of "speech"
-            await rtpHandler.sendSilence(silenceDuration);
-
-            // Manually inject the transcription into B2BUA → Agent audio path
-            // This simulates what would happen if the customer actually said this text
-            this.transcriptCount++;
-
-            // Record what customer SAID (ground truth for test verification)
-            if (this.transcriptVerifier) {
-              this.transcriptVerifier.addTranscript({
-                source: 'CUSTOMER-SAGT',
-                speaker: 'customer',
-                text: customerMessage
-              });
-            }
-            logger.info({ text: customerMessage, source: 'CUSTOMER-SAGT', turn }, `🗣️ [CUSTOMER SAGT] 💬 (Turn ${turn})`);
-
-            // Simulate the B2BUA receiving this transcription from customer audio
-            // (In production, this would come from actual STT of customer's audio)
-            if (this.b2buaMixer) {
-              logger.info({ text: customerMessage }, '📝 Injecting customer transcript into agent pipeline');
-              // Emit directly to B2BUA's Leg A transcription handler
-              this.b2buaMixer.emit('transcription', {
-                callId: this.b2buaSession?.sessionId,
-                leg: 'legA',
+              // Ingest into transcript update service for real-time WebSocket updates
+              this.transcriptUpdates.ingest({
+                sessionId: this.currentSessionId,
                 speaker: 'customer',
                 text: customerMessage,
-                timestamp: new Date()
+                timestamp: new Date(),
+                source: 'CUSTOMER-SAGT',
+                isFinal: true  // Mark as final so it broadcasts immediately
               });
+
+              if (this.transcriptVerifier) {
+                this.transcriptVerifier.addTranscript({
+                  source: 'CUSTOMER-SAGT',
+                  speaker: 'customer',
+                  text: customerMessage
+                });
+              }
+              logger.info({ text: customerMessage, source: 'CUSTOMER-SAGT', turn: 2 }, '🗣️ [CUSTOMER SAGT] 💬 (Turn 2)');
+            } catch (error) {
+              logger.error({ error }, 'Failed to generate customer speech (Turn 2)');
             }
-          } catch (error) {
-            logger.error({ error, turn }, `Failed to inject customer speech (Turn ${turn})`);
-          }
-        }, 500); // Wait 500ms after agent stops speaking
+          }, 500); // Wait 500ms before responding
+        }
+
+        // Customer Turn 3: Confirms after agent acknowledges
+        if (this.customerTurnCount === 2 && (data.text.includes('gespeichert') || data.text.includes('notiert') || data.text.includes('Dank'))) {
+          this.customerTurnCount++;
+          setTimeout(async () => {
+            const customerMessage = 'Vielen Dank, auf Wiedersehen';
+            logger.info({ text: customerMessage, turn: 3 }, '🗣️ Customer speaking (Turn 3)');
+
+            try {
+              // Generate TTS audio directly (returns PCM)
+              const audioBuffer = await this.ttsProvider.synthesize(customerMessage, 'de');
+
+              // Send via RTP in 20ms chunks (for VAD detection)
+              await this.sendAudioInChunks(rtpHandler, audioBuffer);
+
+              // Record the transcript manually
+              this.transcriptCount++;
+
+              // Ingest into transcript update service for real-time WebSocket updates
+              this.transcriptUpdates.ingest({
+                sessionId: this.currentSessionId,
+                speaker: 'customer',
+                text: customerMessage,
+                timestamp: new Date(),
+                source: 'CUSTOMER-SAGT',
+                isFinal: true  // Mark as final so it broadcasts immediately
+              });
+
+              if (this.transcriptVerifier) {
+                this.transcriptVerifier.addTranscript({
+                  source: 'CUSTOMER-SAGT',
+                  speaker: 'customer',
+                  text: customerMessage
+                });
+              }
+              logger.info({ text: customerMessage, source: 'CUSTOMER-SAGT', turn: 3 }, '🗣️ [CUSTOMER SAGT] 💬 (Turn 3)');
+            } catch (error) {
+              logger.error({ error }, 'Failed to generate customer speech (Turn 3)');
+            }
+          }, 500); // Wait 500ms before responding
+        }
       });
 
-      // NOTE: Customer pipeline is in listen-only mode, so it won't emit 'agentResponse' events.
-      // Customer speech is manually controlled via sendAudioInChunks() and transcripts are
-      // recorded manually in the test turns below.
+      // Listen for customer responses (when customer speaks)
+      this.customerPipeline.on('agentResponse', (data) => {
+        logger.info({
+          speaker: data.speaker,
+          text: data.text,
+          source: 'CUSTOMER-SAGT'
+        }, '🗣️ [CUSTOMER SAGT] 💬');
+
+        // Record in transcript verifier
+        if (this.transcriptVerifier) {
+          this.transcriptVerifier.addTranscript({
+            source: 'CUSTOMER-SAGT',
+            speaker: data.speaker,
+            text: data.text
+          });
+        }
+      });
 
       // Audio flow logging disabled to reduce log spam
       // rtpHandler.on('audio', (audioData) => {
@@ -623,14 +692,14 @@ class B2BUATestManager {
       logger.info('   3. 3-Party conference established');
       logger.info('   4. Transcriptions start flowing');
       logger.info('');
-      logger.info('⏱️  Call will run for 60 seconds (longer conversation), then auto-hangup...');
+      logger.info('⏱️  Call will run for 30 seconds (3 turns), then auto-hangup...');
 
-      // Auto-hangup after 60 seconds (extended for longer conversation)
+      // Auto-hangup after 30 seconds (extended for 3 turns)
       setTimeout(async () => {
         logger.info('');
-        logger.info('⏱️  60 seconds elapsed, hanging up test call...');
+        logger.info('⏱️  30 seconds elapsed, hanging up test call...');
         await this.customerServer.terminateCall(callId);
-      }, 60000);
+      }, 30000);
 
     } catch (error) {
       logger.error({ error }, '❌ Failed to initiate test call');

@@ -22,7 +22,7 @@ export class OpenAILLMProvider implements LLMProvider {
       const response = await this.openai.chat.completions.create({
         model: this.model,
         messages,
-        temperature: 0.7,
+        temperature: 0.2, // keep answers deterministic for predictable dialogues
         max_tokens: maxTokens,
       });
 

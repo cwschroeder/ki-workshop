@@ -22,8 +22,10 @@ import { OpenAISTTProvider } from '../providers/openai/OpenAISTTProvider';
 import { OpenAILLMProvider } from '../providers/openai/OpenAILLMProvider';
 import { OpenAITTSProvider } from '../providers/openai/OpenAITTSProvider';
 import { CsvService } from '../services/CsvService';
+import { TranscriptUpdateService } from '../services/TranscriptUpdateService';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { TranscriptWebSocketServer } from '../websocket/TranscriptWebSocketServer';
 
 /**
  * Main B2BUA Conference Manager
@@ -37,6 +39,8 @@ class B2BUAConferenceManager {
   private llmProvider: OpenAILLMProvider;
   private ttsProvider: OpenAITTSProvider;
   private transcriptionPipelines: Map<string, VoiceAgentPipeline> = new Map();
+  private transcriptUpdates: TranscriptUpdateService;
+  private transcriptWebSocket: TranscriptWebSocketServer;
 
   constructor() {
     // Initialize SIP server (will handle both inbound calls and outbound bridging)
@@ -58,10 +62,39 @@ class B2BUAConferenceManager {
     this.sttProvider = new OpenAISTTProvider(env.OPENAI_API_KEY);
     this.llmProvider = new OpenAILLMProvider(env.OPENAI_API_KEY, 'gpt-4o-mini');
     this.ttsProvider = new OpenAITTSProvider(env.OPENAI_API_KEY, 'tts-1', 'nova');
+
+    // Transcript update pipeline (merges interim + final and broadcasts to Web UI)
+    this.transcriptUpdates = new TranscriptUpdateService();
+    this.transcriptWebSocket = new TranscriptWebSocketServer(env.TRANSCRIPT_WS_PORT);
+
+    this.transcriptUpdates.on('update', (update) => {
+      logger.info({
+        sessionId: update.sessionId,
+        speaker: update.speaker,
+        revision: update.revision,
+        status: update.status,
+        text: update.text
+      }, update.status === 'final' ? '💬 Transcript final' : '🔄 Transcript update');
+
+      this.transcriptWebSocket.broadcast(update);
+
+      if (update.status === 'final') {
+        void this.csvService.saveTranscription({
+          call_id: update.sessionId,
+          timestamp: update.startedAt,
+          speaker: update.speaker as 'agent' | 'customer',
+          text: update.text,
+          confidence: 0.95
+        }).catch((error) => {
+          logger.error({ error, sessionId: update.sessionId }, 'Failed to persist transcript');
+        });
+      }
+    });
   }
 
   async start(): Promise<void> {
     logger.info('🚀 Starting B2BUA Conference Manager');
+    logger.info({ port: env.TRANSCRIPT_WS_PORT }, '📡 Transcript WebSocket enabled');
 
     // Listen for incoming calls
     this.sipServer.on('callStarted', async ({ callId, rtpHandler }) => {
@@ -139,21 +172,14 @@ class B2BUAConferenceManager {
         { listenOnlyMode: true, speakerLabel: 'customer' }
       );
 
-      // Listen for transcriptions from customer
-      legAPipeline.on('transcription', async (data) => {
-        logger.info({
+      // Listen for transcriptions from customer and stream them as updates
+      legAPipeline.on('transcription', (data) => {
+        this.transcriptUpdates.ingest({
           sessionId,
           speaker: data.speaker,
-          text: data.text
-        }, '💬 Customer said');
-
-        // Save to CSV
-        await this.csvService.saveTranscription({
-          call_id: sessionId,
-          timestamp: data.timestamp.toISOString(),
-          speaker: data.speaker,
           text: data.text,
-          confidence: 0.95 // Placeholder, OpenAI Whisper doesn't provide confidence
+          timestamp: data.timestamp,
+          source: 'b2bua-legA'
         });
       });
 
@@ -175,21 +201,14 @@ class B2BUAConferenceManager {
           { listenOnlyMode: true, speakerLabel: 'agent' }
         );
 
-        // Listen for transcriptions from agent
-        legBPipeline.on('transcription', async (data) => {
-          logger.info({
+        // Listen for transcriptions from agent and stream them as updates
+        legBPipeline.on('transcription', (data) => {
+          this.transcriptUpdates.ingest({
             sessionId,
             speaker: data.speaker,
-            text: data.text
-          }, '💬 Agent said');
-
-          // Save to CSV
-          await this.csvService.saveTranscription({
-            call_id: sessionId,
-            timestamp: data.timestamp.toISOString(),
-            speaker: data.speaker,
             text: data.text,
-            confidence: 0.95
+            timestamp: data.timestamp,
+            source: 'b2bua-legB'
           });
         });
 
@@ -216,6 +235,9 @@ class B2BUAConferenceManager {
       this.transcriptionPipelines.delete(`${sessionId}-legB`);
     }
 
+    // Ensure any pending interim updates are flushed
+    this.transcriptUpdates.flushSession(sessionId);
+
     logger.info({ sessionId }, 'Transcription stopped');
   }
 
@@ -233,6 +255,12 @@ class B2BUAConferenceManager {
 
     // Stop SIP server
     await this.sipServer.stop();
+
+    // Flush any pending transcript updates
+    this.transcriptUpdates.flushAll();
+
+    // Close websocket stream
+    this.transcriptWebSocket.close();
 
     logger.info('✅ B2BUA Conference Manager stopped');
   }

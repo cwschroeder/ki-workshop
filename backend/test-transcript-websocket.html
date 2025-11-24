@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Transcript Monitor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.disconnected {
+            background-color: #663333;
+            color: #ff6666;
+        }
+        .status.connected {
+            background-color: #336633;
+            color: #66ff66;
+        }
+        .transcript-container {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .utterance {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        .utterance.customer {
+            background-color: #2d3748;
+            border-left-color: #4299e1;
+        }
+        .utterance.agent {
+            background-color: #2d4a3d;
+            border-left-color: #48bb78;
+        }
+        .utterance.interim {
+            opacity: 0.7;
+            font-style: italic;
+        }
+        .utterance.final {
+            opacity: 1;
+            font-style: normal;
+        }
+        .utterance-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+        .speaker {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .speaker.customer {
+            color: #4299e1;
+        }
+        .speaker.agent {
+            color: #48bb78;
+        }
+        .metadata {
+            display: flex;
+            gap: 15px;
+        }
+        .revision {
+            background-color: #4a5568;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .status-badge.interim {
+            background-color: #ecc94b;
+            color: #1a1a1a;
+        }
+        .status-badge.final {
+            background-color: #48bb78;
+            color: #1a1a1a;
+        }
+        .text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .timestamp {
+            color: #718096;
+            font-size: 11px;
+        }
+        .source {
+            color: #718096;
+            font-size: 11px;
+            font-family: monospace;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+        }
+        .stat {
+            flex: 1;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .utterance.new {
+            animation: slideIn 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 Live Transcript Monitor</h1>
+        <div id="status" class="status disconnected">
+            🔴 Disconnected - Connecting to ws://localhost:3100...
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Total Updates</div>
+                <div class="stat-value" id="totalUpdates">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Interim Updates</div>
+                <div class="stat-value" id="interimUpdates">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Final Updates</div>
+                <div class="stat-value" id="finalUpdates">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Active Utterances</div>
+                <div class="stat-value" id="activeUtterances">0</div>
+            </div>
+        </div>
+
+        <div class="transcript-container" id="transcriptContainer">
+            <p style="color: #718096; text-align: center;">Waiting for transcript updates...</p>
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const containerEl = document.getElementById('transcriptContainer');
+        const totalUpdatesEl = document.getElementById('totalUpdates');
+        const interimUpdatesEl = document.getElementById('interimUpdates');
+        const finalUpdatesEl = document.getElementById('finalUpdates');
+        const activeUtterancesEl = document.getElementById('activeUtterances');
+
+        let totalUpdates = 0;
+        let interimUpdates = 0;
+        let finalUpdates = 0;
+        const utterances = new Map();
+
+        let ws = null;
+        let reconnectTimeout = null;
+        const RECONNECT_DELAY = 2000; // 2 seconds
+
+        function connect() {
+            // Clear any existing reconnect timeout
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+
+            // Close existing connection if any
+            if (ws) {
+                ws.onclose = null;
+                ws.close();
+            }
+
+            statusEl.textContent = '🟡 Connecting to ws://localhost:3100...';
+            statusEl.className = 'status disconnected';
+
+            ws = new WebSocket('ws://localhost:3100');
+
+            ws.onopen = () => {
+                statusEl.textContent = '🟢 Connected to WebSocket';
+                statusEl.className = 'status connected';
+                console.log('WebSocket connected');
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = '🔴 Disconnected - Reconnecting in 2s...';
+                statusEl.className = 'status disconnected';
+                console.log('WebSocket closed, attempting reconnect...');
+
+                // Attempt to reconnect after delay
+                reconnectTimeout = setTimeout(() => {
+                    connect();
+                }, RECONNECT_DELAY);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                statusEl.textContent = '🔴 WebSocket error - Reconnecting...';
+                statusEl.className = 'status disconnected';
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // Handle ready message
+                if (data.type === 'ready') {
+                    console.log('WebSocket ready:', data.message);
+                    return;
+                }
+
+                // Handle transcript update
+                if (data.type === 'transcript_update') {
+                    handleTranscriptUpdate(data);
+                }
+            };
+        }
+
+        // Initial connection
+        connect();
+
+        function handleTranscriptUpdate(update) {
+            totalUpdates++;
+            totalUpdatesEl.textContent = totalUpdates;
+
+            if (update.status === 'interim') {
+                interimUpdates++;
+                interimUpdatesEl.textContent = interimUpdates;
+            } else {
+                finalUpdates++;
+                finalUpdatesEl.textContent = finalUpdates;
+            }
+
+            // Clear placeholder text
+            if (containerEl.querySelector('p')) {
+                containerEl.innerHTML = '';
+            }
+
+            // Get or create utterance element
+            let utteranceEl = document.getElementById(update.utteranceId);
+            let isNew = false;
+
+            if (!utteranceEl) {
+                isNew = true;
+                utteranceEl = createUtteranceElement(update);
+                containerEl.appendChild(utteranceEl);
+                utterances.set(update.utteranceId, update);
+            } else {
+                updateUtteranceElement(utteranceEl, update);
+                utterances.set(update.utteranceId, update);
+            }
+
+            // Update active utterances count
+            const activeCount = Array.from(utterances.values()).filter(u => u.status === 'interim').length;
+            activeUtterancesEl.textContent = activeCount;
+
+            // Auto-scroll to bottom
+            containerEl.scrollTop = containerEl.scrollHeight;
+        }
+
+        function createUtteranceElement(update) {
+            const div = document.createElement('div');
+            div.id = update.utteranceId;
+            div.className = `utterance ${update.speaker} ${update.status} new`;
+
+            const startTime = new Date(update.startedAt).toLocaleTimeString('de-DE');
+            const receivedTime = new Date(update.receivedAt).toLocaleTimeString('de-DE');
+
+            div.innerHTML = `
+                <div class="utterance-header">
+                    <div>
+                        <span class="speaker ${update.speaker}">${update.speaker}</span>
+                        <span class="timestamp">${startTime}</span>
+                        ${update.source ? `<span class="source">[${update.source}]</span>` : ''}
+                    </div>
+                    <div class="metadata">
+                        <span class="revision">Rev ${update.revision}</span>
+                        <span class="status-badge ${update.status}">${update.status}</span>
+                    </div>
+                </div>
+                <div class="text">${update.text}</div>
+            `;
+
+            return div;
+        }
+
+        function updateUtteranceElement(element, update) {
+            element.className = `utterance ${update.speaker} ${update.status}`;
+
+            const startTime = new Date(update.startedAt).toLocaleTimeString('de-DE');
+
+            element.innerHTML = `
+                <div class="utterance-header">
+                    <div>
+                        <span class="speaker ${update.speaker}">${update.speaker}</span>
+                        <span class="timestamp">${startTime}</span>
+                        ${update.source ? `<span class="source">[${update.source}]</span>` : ''}
+                    </div>
+                    <div class="metadata">
+                        <span class="revision">Rev ${update.revision}</span>
+                        <span class="status-badge ${update.status}">${update.status}</span>
+                    </div>
+                </div>
+                <div class="text">${update.text}</div>
+            `;
+        }
+    </script>
+</body>
+</html>

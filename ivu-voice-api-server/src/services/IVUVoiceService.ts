@@ -6,7 +6,20 @@
  */
 
 import type { IAIProvider, ChatMessage } from '../providers/ai/IAIProvider';
-import type { ITelephonyProvider, TelephonyBlock } from '../providers/telephony/ITelephonyProvider';
+import type {
+  ITelephonyProvider,
+  TelephonyBlock,
+  MakeCallOptions,
+  MakeCallResponse,
+  SendSMSOptions,
+  SendSMSResponse,
+  StartRecordingOptions,
+  StartRecordingResponse,
+  StopRecordingOptions,
+  StopRecordingResponse,
+  RetrieveRecordingOptions,
+  RetrieveRecordingResponse
+} from '../providers/telephony/ITelephonyProvider';
 import type { SessionManager } from './SessionManager';
 import type { VoiceSession } from '../models/VoiceSession';
 
@@ -118,6 +131,25 @@ export class IVUVoiceService {
   }
 
   /**
+   * Bridge call to another destination (call transfer)
+   */
+  async bridge(
+    sessionId: string,
+    destination: string,
+    options?: TransferOptions
+  ): Promise<TelephonyBlock> {
+    const session = this.getSessionOrThrow(sessionId);
+    this.sessionManager.updateActivity(sessionId);
+
+    console.log(`[IVUVoiceService] Bridge (${sessionId}): ${destination}`);
+
+    return this.telephonyProvider.bridge(destination, {
+      destinationType: options?.destinationType,
+      timeout: options?.timeout
+    });
+  }
+
+  /**
    * Transfer call to another destination
    */
   async transfer(
@@ -151,6 +183,19 @@ export class IVUVoiceService {
 
     return this.telephonyProvider.hangup();
   }
+
+  /**
+   * Play pre-recorded announcement
+   */
+  async playAnnouncement(sessionId: string, announcementName: string): Promise<TelephonyBlock> {
+    const session = this.getSessionOrThrow(sessionId);
+    this.sessionManager.updateActivity(sessionId);
+
+    console.log(`[IVUVoiceService] Play announcement (${sessionId}): ${announcementName}`);
+
+    return this.telephonyProvider.playAnnouncement(announcementName);
+  }
+
 
   /**
    * AI-powered conversation
@@ -221,6 +266,79 @@ export class IVUVoiceService {
     if (session.socket) {
       session.socket.emit('call.user_input', { input: userInput });
     }
+  }
+
+  /**
+   * Make an outbound call
+   *
+   * Initiates an outbound call using TENIOS MakeCall API.
+   * The call will be handled by the routing plan configured for the specified TENIOS number.
+   *
+   * @param options MakeCall parameters
+   * @returns Promise with callback ID
+   */
+  async makeCall(options: MakeCallOptions): Promise<MakeCallResponse> {
+    console.log(`[IVUVoiceService] Making outbound call to ${options.destinationNumber}`);
+
+    return await this.telephonyProvider.makeCall(options);
+  }
+
+  /**
+   * Send SMS message
+   *
+   * Sends an SMS using TENIOS SMS API.
+   * Requires Account-SID and Auth Token to be configured.
+   *
+   * @param options SMS parameters
+   * @returns Promise with message URI and status
+   */
+  async sendSMS(options: SendSMSOptions): Promise<SendSMSResponse> {
+    console.log(`[IVUVoiceService] Sending SMS to ${options.to}`);
+
+    return await this.telephonyProvider.sendSMS(options);
+  }
+
+  /**
+   * Start call recording
+   *
+   * Starts recording an ongoing call using the Recording API.
+   * The call must be active and have a call UUID.
+   *
+   * @param options Start recording parameters
+   * @returns Promise with recording UUID
+   */
+  async startRecording(options: StartRecordingOptions): Promise<StartRecordingResponse> {
+    console.log(`[IVUVoiceService] Starting recording for call ${options.callUuid}`);
+
+    return await this.telephonyProvider.startRecording(options);
+  }
+
+  /**
+   * Stop call recording
+   *
+   * Stops an ongoing recording.
+   *
+   * @param options Stop recording parameters
+   * @returns Promise with success status
+   */
+  async stopRecording(options: StopRecordingOptions): Promise<StopRecordingResponse> {
+    console.log(`[IVUVoiceService] Stopping recording ${options.recordingUuid}`);
+
+    return await this.telephonyProvider.stopRecording(options);
+  }
+
+  /**
+   * Retrieve call recording
+   *
+   * Retrieves the audio file for a recording.
+   *
+   * @param options Retrieve recording parameters
+   * @returns Promise with recording data
+   */
+  async retrieveRecording(options: RetrieveRecordingOptions): Promise<RetrieveRecordingResponse> {
+    console.log(`[IVUVoiceService] Retrieving recording ${options.recordingUuid}`);
+
+    return await this.telephonyProvider.retrieveRecording(options);
   }
 
   /**

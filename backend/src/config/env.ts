@@ -24,7 +24,8 @@ const EnvSchema = z.object({
   LINPHONE_RECORDINGS_DIR: z.string().default('./linphone-recordings'),
   SIMULATE_HUMAN_AGENT: z.string().default('false'),
   AI_AGENT_SYSTEM_PROMPT: z.string().default('Du bist ein freundlicher Mitarbeiter beim Stadtwerk. Du hilfst Kunden bei allen Anliegen, insbesondere bei der Erfassung von Zählerständen, Fragen zu Rechnungen, Tarifwechseln und allgemeinen Stadtwerk-Themen. Sei höflich, empathisch und hilfsbereit.'),
-  FORCE_AGENT_BRIDGE: z.string().default('false')
+  FORCE_AGENT_BRIDGE: z.string().default('false'),
+  TRANSCRIPT_WS_PORT: z.string().default('3100')
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -55,5 +56,6 @@ export const env = {
   LINPHONE_RECORDINGS_DIR: parsed.data.LINPHONE_RECORDINGS_DIR,
   SIMULATE_HUMAN_AGENT: parsed.data.SIMULATE_HUMAN_AGENT.toLowerCase() === 'true',
   AI_AGENT_SYSTEM_PROMPT: parsed.data.AI_AGENT_SYSTEM_PROMPT,
-  FORCE_AGENT_BRIDGE: parsed.data.FORCE_AGENT_BRIDGE.toLowerCase() === 'true'
+  FORCE_AGENT_BRIDGE: parsed.data.FORCE_AGENT_BRIDGE.toLowerCase() === 'true',
+  TRANSCRIPT_WS_PORT: parseInt(parsed.data.TRANSCRIPT_WS_PORT, 10)
 };

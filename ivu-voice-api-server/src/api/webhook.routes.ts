@@ -107,7 +107,16 @@ export function createWebhookRouter(
         // Follow-up: User provided input
         if (userInput) {
           await voiceService.processUserInput(session.sessionId, userInput);
+
+          // Emit user input to WebSocket client
+          wsHandler.emitToSession(session.sessionId, 'call.user_input', {
+            callId,
+            input: userInput
+          });
         }
+
+        // Wait for client to send actions (max 500ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Check for pending actions from client (use queue)
         const pendingActions = session.metadata.pendingActions || [];
@@ -180,6 +189,10 @@ async function executeAction(
       blocks.push(await voiceService.collectDigits(sessionId, action));
       break;
 
+    case 'bridge':
+      blocks.push(await voiceService.bridge(sessionId, action.destination, action));
+      break;
+
     case 'transfer':
       blocks.push(await voiceService.transfer(sessionId, action.destination, action));
       break;
@@ -190,6 +203,10 @@ async function executeAction(
         blocks.push(await voiceService.say(sessionId, action.message));
       }
       blocks.push(await voiceService.hangup(sessionId));
+      break;
+
+    case 'play_announcement':
+      blocks.push(await voiceService.playAnnouncement(sessionId, action.announcementName));
       break;
 
     default:

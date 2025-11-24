@@ -50,5 +50,9 @@ export function createTelephonyProvider(): ITelephonyProvider {
   // if (env.TELEPHONY_PROVIDER === 'twilio') return new TwilioProvider();
   // if (env.TELEPHONY_PROVIDER === 'vonage') return new VonageProvider();
 
-  return new TeniosProvider();
+  if (!env.TENIOS_API_KEY) {
+    throw new Error('TENIOS_API_KEY is required');
+  }
+
+  return new TeniosProvider(env.TENIOS_API_KEY);
 }

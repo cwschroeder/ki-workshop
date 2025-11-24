@@ -1,328 +1,474 @@
 # IVU Voice API Workshop
 
-Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Voice-Anwendungen mit der vereinfachten IVU Voice API erstellen können - ohne ngrok oder komplexe Webhook-Infrastruktur.
+Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Voice-Anwendungen mit der IVU Voice API erstellen können.
 
 ## 🎯 Was Sie lernen werden
 
-- **Voice-Anwendungen** mit IVU Voice API erstellen
-- **Spracheingabe (ASR)** und **Text-to-Speech (TTS)** nutzen
-- **KI-gestützte Gespräche** mit OpenAI/lokalen LLMs implementieren
-- **DTMF-Menüs** und **Call-Routing** aufbauen
-- **Daten-Validierung** gegen CSV-Dateien
-- **Real-time Call-Monitoring** via WebSocket
+**Teil 1: API-Funktionen kennenlernen**
+- Text-to-Speech (TTS) verwenden
+- Spracheingabe (ASR) verarbeiten
+- DTMF-Eingaben (Zifferntasten) erfassen
+- Professionelle Ansagen abspielen
+- Anrufe weiterleiten (Transfer/Bridge)
+- Anrufaufzeichnung nutzen
+- Ausgehende Anrufe tätigen (MakeCall)
+- SMS versenden
+
+**Teil 2: Praxis-Projekt Zählerstandserfassung**
+- Voice-Bot mit KI-Unterstützung bauen
+- Kundendaten aus CSV validieren
+- Zählerstände per Sprache erfassen
+- Eingaben validieren und speichern
+- CSV-Dateien lesen und schreiben
+- Fehlerbehandlung implementieren
 
 ## 📋 Voraussetzungen
 
 - **Node.js 20+** installiert
-- **npm** oder **yarn**
-- **IVU Voice API-Key** (wird im Workshop bereitgestellt)
-- **OpenAI API-Key** (optional, für KI-Features)
-- Ein **SIP-Client** oder **Telefon** zum Testen
+- **npm** (kommt mit Node.js)
+- **Telefon** zum Testen der Anrufe
+- **IVU Voice API Server** läuft auf `mqtt.ivu-software.de:443`
 
 ## 🚀 Schnellstart
 
-### 1. Repository klonen
-
-```bash
-git clone https://github.com/ivu/voice-workshop.git
-cd voice-workshop
-```
-
-### 2. Abhängigkeiten installieren
+### 1. Setup
 
 ```bash
 npm install
 ```
 
-### 3. IVU Voice API Server-URL
+### 2. Umgebungsvariable konfigurieren
 
-Der IVU Voice API Server läuft bereits bei IVU:
-- **Production:** `wss://voice-api.ivu.de`
-- **Workshop:** Wird im Workshop bekanntgegeben
+```bash
+cp .env.example .env
+# Editiere .env und setze deine Telefonnummer:
+# PHONE_NUMBER=+4940...
+```
 
-Sie brauchen **keine** eigene Server-Infrastruktur!
+### 3. Erstes Test-Skript starten
 
-## 📚 Tutorial-Struktur
+```bash
+npx tsx tests/01-say.ts
+```
 
-Das Workshop-Tutorial besteht aus 6 aufeinander aufbauenden Beispielen:
+Der Test-Client verbindet sich automatisch mit `wss://mqtt.ivu-software.de:443` und weist deiner Telefonnummer eine Session zu. Rufe die Nummer an, um den Test zu starten!
 
-### Beispiel 1: Hello World (10 min)
-**Datei:** `examples/01-hello-world.ts`
+## 📚 Workshop-Struktur
 
-Ihr erster Voice-Call:
-- Anruf entgegennehmen
-- Begrüßung aussprechen
+### Teil 1: API-Funktionen kennenlernen (90 min)
+
+In diesem Teil lernen Sie alle Funktionen der IVU Voice API kennen. Jedes Test-Skript demonstriert eine spezifische Funktion:
+
+#### Test 01: SAY - Text-to-Speech (10 min)
+**Datei:** `tests/01-say.ts`
+
+Lernen Sie:
+- Verbindung zum Server aufbauen
+- Telefonnummer zuweisen
+- Text-to-Speech verwenden
 - Anruf beenden
 
-```typescript
-session.on('call.incoming', async (call) => {
-  await call.say('Willkommen beim IVU Workshop!');
-  await call.hangup();
-});
+```bash
+npx tsx tests/01-say.ts
 ```
 
-### Beispiel 2: DTMF-Menü (15 min)
-**Datei:** `examples/02-dtmf-menu.ts`
+#### Test 02: Collect Speech - Spracheingabe (15 min)
+**Datei:** `tests/02-collect-speech.ts`
 
-Interaktives Menü mit Zifferneingabe:
-- Menü-Optionen vorlesen
-- DTMF-Eingabe sammeln
-- Verzweigung basierend auf Auswahl
-
-```typescript
-const choice = await call.collectDigits({
-  maxDigits: 1,
-  prompt: 'Drücken Sie 1 für Zählerstand, 2 für Mitarbeiter'
-});
-
-if (choice === '1') {
-  // Zählerstand-Flow
-} else if (choice === '2') {
-  await call.transfer('sip:agent@ivu.de');
-}
-```
-
-### Beispiel 3: Spracheingabe (20 min)
-**Datei:** `examples/03-speech-input.ts`
-
-Automatische Spracherkennung (ASR):
-- Spracheingabe sammeln
+Lernen Sie:
+- Spracheingabe sammeln (ASR)
+- Spracherkennung konfigurieren
 - Transkription verarbeiten
-- Nummer extrahieren
 
-```typescript
-const speech = await call.collectSpeech({
-  prompt: 'Bitte nennen Sie Ihre Kundennummer',
-  language: 'de-DE'
-});
-
-console.log('Kunde sagte:', speech);
+```bash
+npx tsx tests/02-collect-speech.ts
 ```
 
-### Beispiel 4: KI-Konversation (25 min)
-**Datei:** `examples/04-ai-conversation.ts`
+#### Test 03: DTMF - Zifferneingabe (15 min)
+**Datei:** `tests/03-dtmf.ts`
 
-KI-gestützter Dialog mit OpenAI:
-- Natürliche Konversation
-- Kontext über mehrere Turns
-- Automatische Daten-Extraktion
+Lernen Sie:
+- DTMF-Eingaben sammeln
+- Menüs aufbauen
+- Verzweigungslogik implementieren
 
-```typescript
-await call.aiConversation({
-  systemPrompt: `Du bist ein freundlicher Assistent.
-  Sammle: Kundennummer, Zählernummer, Zählerstand.
-  Bestätige und beende mit [END_CALL]`,
-  maxTurns: 10
-});
+```bash
+npx tsx tests/03-dtmf.ts
 ```
 
-### Beispiel 5: Zählerstand komplett (20 min)
-**Datei:** `examples/05-meter-reading.ts`
+#### Test 04: DTMF + Speech - Kombiniert (15 min)
+**Datei:** `tests/04-dtmf-speech.ts`
 
-Vollständige Zählerstand-Erfassung:
-- Kundennummer validieren (CSV)
-- Zählernummer prüfen
-- Stand erfassen und speichern
-- Bestätigung
+Lernen Sie:
+- DTMF und Sprache kombinieren
+- Komplexe Flows gestalten
 
-```typescript
-// Validierung gegen CSV
-const customer = await session.lookupCustomer(customerNumber);
-if (!customer) {
-  await call.say('Kundennummer nicht gefunden');
-  return;
-}
-
-// Speichern
-await session.saveMeterReading({
-  customerNumber,
-  meterNumber,
-  reading,
-  timestamp: new Date()
-});
+```bash
+npx tsx tests/04-dtmf-speech.ts
 ```
 
-### Beispiel 6: Pizza-Bestellung (Bonus, 30 min)
-**Datei:** `examples/06-pizza-order.ts`
+#### Test 05: Announcement - Professionelle Ansagen (10 min)
+**Datei:** `tests/05-announcement.ts`
 
-Offene Aufgabe:
-- Pizza-Größe abfragen
-- Belag-Auswahl (mehrere)
-- Adresse erfassen
-- Bestellung zusammenfassen
+Lernen Sie:
+- Vorab aufgenommene Ansagen abspielen
+- Audio-Dateien verwenden
+
+```bash
+npx tsx tests/05-announcement.ts
+```
+
+#### Test 06: Transfer - Anrufweiterleitung (15 min)
+**Datei:** `tests/06-transfer.ts`
+
+Lernen Sie:
+- Anrufe zu SIP-Benutzern weiterleiten
+- Anrufe zu Telefonnummern weiterleiten
+- Sequential vs. Parallel Bridging
+
+```bash
+npx tsx tests/06-transfer.ts
+```
+
+#### Test 07: Record - Anrufaufzeichnung (10 min)
+**Datei:** `tests/07-record.ts`
+
+Lernen Sie:
+- Anrufe aufzeichnen
+- Aufzeichnungen abrufen
+- Rechtliche Hinweise beachten
+
+```bash
+npx tsx tests/07-record.ts
+```
+
+#### Test 08: MakeCall - Ausgehende Anrufe (10 min)
+**Datei:** `tests/08-makecall-REQUIRES-ACTIVATION.ts`
+
+Lernen Sie:
+- Ausgehende Anrufe initiieren
+- Callback-Mechanismus verstehen
+
+⚠️ **Hinweis:** Benötigt API-Aktivierung
+
+```bash
+npx tsx tests/08-makecall-REQUIRES-ACTIVATION.ts
+```
+
+#### Test 09: SendSMS - SMS versenden (5 min)
+**Datei:** `tests/09-sendsms-REQUIRES-ACTIVATION.ts`
+
+Lernen Sie:
+- SMS programmatisch versenden
+
+⚠️ **Hinweis:** Benötigt API-Aktivierung
+
+```bash
+npx tsx tests/09-sendsms-REQUIRES-ACTIVATION.ts
+```
+
+### Teil 2: Praxis-Projekt Zählerstandserfassung (120 min)
+
+Im zweiten Teil bauen Sie einen vollständigen Voice-Bot zur Zählerstandserfassung. Das Projekt kombiniert alle gelernten Funktionen mit praktischen Anforderungen.
+
+#### Projektziele
+
+1. **Kundenvalidierung**
+   - Kundennummer per Sprache erfassen
+   - Gegen CSV-Datei validieren
+   - Fehlerfälle behandeln
+
+2. **Zählerstandserfassung**
+   - Zählernummer validieren
+   - Zählerstand per Sprache sammeln
+   - Plausibilität prüfen
+
+3. **Datenspeicherung**
+   - Zählerstände in CSV speichern
+   - Timestamps erfassen
+   - Transkripte dokumentieren
+
+4. **Fehlerbehandlung**
+   - Ungültige Eingaben abfangen
+   - Maximal 2 Wiederholungen
+   - Freundliche Fehlermeldungen
+
+#### Projekt-Struktur
+
+```
+workshop/
+├── lib/
+│   └── ivu-voice-client.ts      # IVU Voice Client SDK
+│
+├── data/
+│   ├── customers.csv              # Kundendaten
+│   ├── meter-readings.csv         # Zählerstände
+│   └── transcripts/               # Gesprächsprotokolle
+│
+├── tests/                         # Teil 1: API-Tests
+│   ├── 01-say.ts
+│   ├── 02-collect-speech.ts
+│   └── ...
+│
+├── src/                           # Teil 2: Projektcode
+│   ├── meter-reading-bot.ts      # Haupt-Bot
+│   ├── services/
+│   │   ├── customer-lookup.ts    # CSV Validierung
+│   │   ├── meter-validation.ts   # Zählerstand-Logik
+│   │   └── csv-writer.ts         # Daten speichern
+│   └── utils/
+│       └── speech-parser.ts      # Sprache → Zahlen
+│
+├── .env                           # Konfiguration
+├── package.json
+└── README.md
+```
+
+#### Schritt-für-Schritt Anleitung
+
+**Schritt 1: CSV-Daten vorbereiten (10 min)**
+
+Erstellen Sie die Datei `data/customers.csv`:
+
+```csv
+customer_number,meter_number,customer_name
+12345,M-789,Max Mustermann
+67890,M-456,Erika Musterfrau
+```
+
+**Schritt 2: Customer Lookup Service (20 min)**
+
+Implementieren Sie `src/services/customer-lookup.ts`:
+- CSV-Datei einlesen
+- Kundennummer suchen
+- Zählernummer validieren
+
+**Schritt 3: Sprach-Parser (20 min)**
+
+Implementieren Sie `src/utils/speech-parser.ts`:
+- Sprache zu Zahlen konvertieren
+- Deutsche Zahlenworte verarbeiten
+- Validierung durchführen
+
+**Schritt 4: CSV Writer (15 min)**
+
+Implementieren Sie `src/services/csv-writer.ts`:
+- Neue Zählerstände anhängen
+- Zeitstempel hinzufügen
+- File-Locking beachten
+
+**Schritt 5: Bot zusammenbauen (40 min)**
+
+Implementieren Sie `src/meter-reading-bot.ts`:
+- Call-Flow orchestrieren
+- Services integrieren
+- Fehlerbehandlung einbauen
+- Freundliche Dialoge gestalten
+
+**Schritt 6: Testing (15 min)**
+
+```bash
+npx tsx src/meter-reading-bot.ts
+```
+
+Testen Sie verschiedene Szenarien:
+- ✅ Gültige Kundennummer
+- ❌ Ungültige Kundennummer
+- ✅ Gültiger Zählerstand
+- ❌ Unplausible Werte
+- 🔁 Wiederholungen bei Fehler
 
 ## 🗂️ Projekt-Struktur
 
 ```
-voice-workshop/              # GitHub Repository für Teilnehmer
+workshop/
 ├── lib/                     # IVU Voice Client SDK
-│   └── ivu-voice-client.ts  # SDK zum Verbinden mit IVU-Server
+│   └── ivu-voice-client.ts
 │
-├── workshop-data/           # CSV-Daten
-│   ├── customers.csv        # Test-Kunden
-│   ├── meter-readings.csv   # Gespeicherte Zählerstände
-│   └── transcriptions.csv   # Gesprächsverläufe
+├── tests/                   # Teil 1: API-Tests
+│   ├── 01-say.ts
+│   ├── 02-collect-speech.ts
+│   ├── 03-dtmf.ts
+│   ├── 04-dtmf-speech.ts
+│   ├── 05-announcement.ts
+│   ├── 06-transfer.ts
+│   ├── 07-record.ts
+│   ├── 08-makecall-REQUIRES-ACTIVATION.ts
+│   ├── 09-sendsms-REQUIRES-ACTIVATION.ts
+│   └── README.md
 │
-├── examples/                # Tutorial-Code
-│   ├── 01-hello-world.ts    # Erster Call
-│   ├── 02-dtmf-menu.ts      # DTMF-Menü
-│   ├── 03-speech-input.ts   # Spracheingabe
-│   ├── 04-ai-conversation.ts # KI-Dialog
-│   ├── 05-meter-reading.ts  # Vollständiges Beispiel
-│   └── 06-pizza-order.ts    # Bonus-Aufgabe
+├── src/                     # Teil 2: Projektcode
+│   └── meter-reading-bot.ts
 │
-├── docs/                    # Dokumentation
-│   ├── tutorial.md          # Detailliertes Tutorial
-│   └── troubleshooting.md   # Fehlerbehandlung
+├── data/                    # CSV-Daten
+│   ├── customers.csv
+│   ├── meter-readings.csv
+│   └── transcripts/
 │
-├── package.json             # Dependencies
-├── tsconfig.json            # TypeScript Config
-└── README.md                # Diese Datei
+├── .env.example
+├── .env
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-**Hinweis:** Der IVU Voice API Server läuft separat bei IVU. Sie brauchen nur dieses Repository!
-
-## 🔧 API-Übersicht
+## 🔧 API-Referenz
 
 ### Session erstellen
 
 ```typescript
 import { createVoiceSession } from './lib/ivu-voice-client';
 
-// Verbindet automatisch mit IVU Voice API Server
+// Verbindet mit wss://mqtt.ivu-software.de:443
 const session = await createVoiceSession();
+
+// Telefonnummer zuweisen
+await session.assignPhoneNumber(process.env.PHONE_NUMBER);
 ```
 
 ### Call-Events
 
 ```typescript
 session.on('call.incoming', async (call) => {
-  // Neuer Anruf
+  // Neuer eingehender Anruf
+  console.log('Anruf empfangen:', call.callId);
 });
 
 session.on('call.ended', (callId) => {
-  // Anruf beendet
+  // Anruf wurde beendet
+  console.log('Anruf beendet:', callId);
+});
+
+session.on('call.user_input', (input) => {
+  // Benutzer-Eingabe erhalten
+  console.log('Eingabe:', input);
 });
 
 session.on('error', (error) => {
   // Fehler aufgetreten
+  console.error('Fehler:', error);
 });
 ```
 
 ### Call-Actions
 
 ```typescript
-// Text aussprechen
-await call.say(text: string)
+// Text aussprechen (TTS)
+await call.say('Willkommen!');
 
 // Ziffern sammeln (DTMF)
-await call.collectDigits({ maxDigits: number, timeout?: number })
-
-// Sprache sammeln (ASR)
-await call.collectSpeech({ language: string, timeout?: number })
-
-// KI-Konversation
-await call.aiConversation({ systemPrompt: string, maxTurns?: number })
-
-// Call weiterleiten
-await call.transfer(destination: string)
-
-// Anruf beenden
-await call.hangup(message?: string)
-```
-
-### Daten-Helper
-
-```typescript
-// Kunde nachschlagen
-const customer = await session.lookupCustomer(customerNumber)
-
-// Zählerstand speichern
-await session.saveMeterReading({ customerNumber, meterNumber, reading })
-
-// Informationen extrahieren (KI)
-const info = await call.extractCustomerInfo(speechText)
-```
-
-## 🔐 Konfiguration
-
-**Keine Konfiguration nötig!** Der IVU Voice API Server ist bereits konfiguriert.
-
-Optional können Sie die Server-URL ändern (z.B. für lokale Tests):
-
-```typescript
-const session = await createVoiceSession({
-  serverUrl: 'ws://localhost:3001' // Nur für lokale Entwicklung
+const digits = await call.collectDigits({
+  maxDigits: 5,
+  timeout: 10  // Sekunden
 });
 
-## 🧪 Testen
+// Sprache sammeln (ASR)
+const speech = await call.collectSpeech({
+  language: 'de-DE',
+  timeout: 5,
+  prompt: 'Bitte sprechen Sie jetzt'
+});
 
-### Beispiele ausführen
+// Ansage abspielen
+await call.playAnnouncement('IVU_WELCOME');
 
-```bash
-# Beispiel 1 starten
-npm run example:01
+// Anruf weiterleiten
+await call.bridge('sipuser', {
+  destinationType: 'SIP_USER',
+  timeout: 30
+});
 
-# Beispiel 2 starten
-npm run example:02
+// oder zu Telefonnummer
+await call.bridge('+4940123456', {
+  destinationType: 'PHONE_NUMBER',
+  timeout: 30
+});
 
-# etc.
+// Anruf beenden
+await call.hangup('Auf Wiedersehen!');
 ```
 
-### Eigene Rufnummer verwenden
-
-Im Workshop wird Ihnen eine Test-Rufnummer zugeteilt. Tragen Sie diese in Ihrem Code ein:
+### Recording API
 
 ```typescript
-const session = await createVoiceSession();
+// Aufzeichnung starten
+const recording = await session.startRecording({
+  callUuid: call.callUuid,
+  recordCaller: true,
+  recordCallee: true
+});
 
-// Ihre zugewiesene Workshop-Nummer
-await session.assignPhoneNumber('+49301234567');
+// Aufzeichnung stoppen
+await session.stopRecording({
+  callUuid: call.callUuid,
+  recordingUuid: recording.recordingUuid
+});
+
+// Aufzeichnung abrufen
+const audio = await session.retrieveRecording({
+  recordingUuid: recording.recordingUuid
+});
 ```
 
-Dann können Sie diese Nummer anrufen und Ihre Anwendung testen!
+### MakeCall API
+
+```typescript
+// Ausgehenden Anruf initiieren
+const result = await session.makeCall({
+  destinationNumber: '+491234567890',
+  teniosNumber: process.env.PHONE_NUMBER,
+  callerId: process.env.PHONE_NUMBER
+});
+```
 
 ## 🐛 Troubleshooting
 
-### Problem: "Cannot connect to IVU Voice API"
+### Problem: "FEHLER: PHONE_NUMBER Umgebungsvariable ist nicht gesetzt!"
 
 **Lösung:**
-1. Überprüfen Sie Ihre Internetverbindung
-2. Ist der Workshop-Server erreichbar? (Fragen Sie den Instructor)
-3. Firewall blockiert WebSocket-Verbindungen?
+1. Kopiere `.env.example` zu `.env`
+2. Trage deine Telefonnummer ein: `PHONE_NUMBER=+4940...`
+3. Starte das Skript neu
 
-### Problem: "Session created but no calls incoming"
-
-**Lösung:**
-1. Haben Sie eine Rufnummer zugewiesen? `session.assignPhoneNumber(...)`
-2. Rufen Sie die richtige Nummer an?
-3. Ist Ihr Code aktiv und wartet auf Events?
-
-### Problem: "User input not received"
+### Problem: "Nummer ist keiner Session zugewiesen"
 
 **Lösung:**
-1. Sprechen Sie klar und deutlich
-2. Warten Sie auf die Ansage, bevor Sie sprechen
-3. Hintergrundgeräusche minimieren
-4. Bei DTMF: Tasten fest drücken
+1. Prüfe, ob `session.assignPhoneNumber()` aufgerufen wurde
+2. Warte bis "Warte auf Anrufe..." angezeigt wird
+3. Rufe dann die richtige Nummer an
+
+### Problem: "Spracheingabe wird nicht erkannt"
+
+**Lösung:**
+1. Spreche klar und deutlich
+2. Warte auf die Ansage, bevor du sprichst
+3. Minimiere Hintergrundgeräusche
+4. Verwende ein gutes Mikrofon
+
+### Problem: "DTMF-Eingabe funktioniert nicht"
+
+**Lösung:**
+1. Drücke die Tasten fest
+2. Warte auf den Piepton
+3. Nutze das Telefon-Tastenfeld (nicht Smartphone-Display)
 
 ## 📖 Weiterführende Ressourcen
 
-- **IVU Voice API Documentation:** Contact IVU for API documentation
-- **OpenAI API Docs:** https://platform.openai.com/docs
-- **Socket.io Docs:** https://socket.io/docs/v4
+- **Tests-Dokumentation:** Siehe `tests/README.md`
+- **IVU Voice API:** Dokumentation unter mqtt.ivu-software.de
 - **TypeScript Handbook:** https://www.typescriptlang.org/docs
 
 ## 🤝 Support
 
 Bei Fragen während des Workshops:
-- **Instructor fragen** (präsent)
-- **GitHub Issues:** https://github.com/ivu/voice-workshop/issues
-- **IVU Voice API Support:** Contact IVU support
+
+- **Workshop-Leiter fragen**
+- **Dokumentation in `tests/README.md` lesen**
+- **Test-Skripte als Beispiele verwenden**
 
 ## 📝 Lizenz
 
-MIT License - IVU Traffic Technologies AG
+MIT License
 
 ---
 

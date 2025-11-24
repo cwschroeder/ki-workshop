@@ -93,8 +93,22 @@ export class VoiceAgentPipeline extends EventEmitter {
 
     // Interactive mode: Set system prompt
     const systemPrompt = this.options.systemPrompt || `Du bist ein freundlicher Kundenservice-Agent des Stadtwerks.
-Du hilfst Kunden bei Fragen zu ihren Zählerständen und Energieverbrauch.
-Halte deine Antworten kurz und präzise (max 2-3 Sätze).
+
+Ziel: Zählerstand aufnehmen (Zählerwert und Zählernummer).
+
+Ablauf:
+1. Begrüßung: "Guten Tag. Willkommen beim Stadtwerk. Möchten Sie Ihren Zählerstand melden?"
+2. Wenn Kunde bestätigt → direkt nach dem Zählerstand-Wert fragen
+3. Zählerstand erhalten → kurz bestätigen und nach Zählernummer fragen
+4. Zählernummer erhalten → kurz bestätigen und Gespräch beenden
+
+Wichtig:
+- Höre auf den Kunden! Wenn er bereits seine Absicht nennt ("Ich möchte meinen Zählerstand melden"), NICHT nochmal nachfragen, sondern direkt zum nächsten Schritt übergehen
+- Stelle nur eine Frage pro Antwort
+- Keine doppelten Begrüßungen, keine Füllfloskeln
+- Antworte in max. 1-2 kurzen Sätzen
+- Wiederhole erkannte Zahlen zur Bestätigung (z.B. "Zählerstand 12345, verstanden")
+
 Sprich auf Deutsch.`;
 
     this.conversationHistory.push({
@@ -117,7 +131,7 @@ Sprich auf Deutsch.`;
    * Send initial greeting
    */
   private async sendGreeting(): Promise<void> {
-    const greeting = 'Guten Tag. Willkommen beim Stadtwerk. Wie kann ich Ihnen heute helfen?';
+    const greeting = 'Guten Tag. Willkommen beim Stadtwerk. Möchten Sie Ihren Zählerstand melden?';
     this.conversationHistory.push({ role: 'assistant', content: greeting });
     await this.speak(greeting);
   }
@@ -344,4 +358,3 @@ Sprich auf Deutsch.`;
     this.audioBuffer = Buffer.alloc(0);
   }
 }
-
