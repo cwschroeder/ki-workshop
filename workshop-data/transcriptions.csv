@@ -1,0 +1,14 @@
+call_id,timestamp,speaker,text
+call_001,2025-11-22T14:35:10.000Z,system,Guten Tag. Willkommen beim Stadtwerk. Möchten Sie Ihren Zählerstand melden?
+call_001,2025-11-22T14:35:15.000Z,user,Ja
+call_001,2025-11-22T14:35:16.000Z,system,Bitte nennen Sie Ihre Kundennummer.
+call_001,2025-11-22T14:35:20.000Z,user,12345
+call_001,2025-11-22T14:35:22.000Z,system,Vielen Dank. Bitte nennen Sie Ihre Zählernummer.
+call_001,2025-11-22T14:35:26.000Z,user,M-789
+call_001,2025-11-22T14:35:28.000Z,system,Danke. Bitte nennen Sie Ihren aktuellen Zählerstand.
+call_001,2025-11-22T14:35:32.000Z,user,5432
+call_001,2025-11-22T14:35:35.000Z,system,Ihr Zählerstand 5432 wurde erfolgreich gespeichert. Vielen Dank für Ihren Anruf.
+call_002,2025-11-21T09:12:40.000Z,system,Guten Tag. Willkommen beim Stadtwerk. Möchten Sie Ihren Zählerstand melden?
+call_002,2025-11-21T09:12:45.000Z,user,Ja bitte
+call_002,2025-11-21T09:12:46.000Z,system,Bitte nennen Sie Ihre Kundennummer.
+call_002,2025-11-21T09:12:50.000Z,user,23456

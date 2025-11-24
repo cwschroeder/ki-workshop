@@ -1,0 +1,33 @@
+{
+  "name": "ivu-voice-workshop",
+  "version": "1.0.0",
+  "description": "IVU Voice API Workshop - Lerne Voice-Anwendungen zu entwickeln",
+  "main": "index.js",
+  "scripts": {
+    "example:01": "tsx examples/01-hello-world.ts",
+    "example:02": "tsx examples/02-dtmf-menu.ts",
+    "example:03": "tsx examples/03-speech-input.ts",
+    "example:04": "tsx examples/04-ai-conversation.ts"
+  },
+  "keywords": [
+    "voice",
+    "ivu-voice",
+    "workshop",
+    "ivu"
+  ],
+  "author": "IVU Traffic Technologies AG",
+  "license": "MIT",
+  "dependencies": {
+    "csv-parse": "^5.5.3",
+    "dotenv": "^17.2.3",
+    "socket.io-client": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
