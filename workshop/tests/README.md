@@ -5,10 +5,18 @@ Nummerierte Test-Skripte für die IVU Voice API. Jeder Test demonstriert verschi
 ## 📋 Voraussetzungen
 
 1. **Umgebungsvariable setzen**: Kopiere `.env.example` zu `.env` und trage deine Telefonnummer ein:
+
+   **macOS/Linux:**
    ```bash
    cp .env.example .env
-   # Editiere .env und setze: PHONE_NUMBER=+49...
    ```
+
+   **Windows:**
+   ```cmd
+   copy .env.example .env
+   ```
+
+   Editiere `.env` und setze: `PHONE_NUMBER=+49...`
 
 2. **Dependencies installieren**:
    ```bash
@@ -93,18 +101,17 @@ Professionelle Sprachaufnahme wird abgespielt (keine TTS-Stimme).
 
 ---
 
-### Test 06: Transfer - Anrufweiterleitung (15 min)
+### Test 06: Transfer - Anrufweiterleitung zu SIP (15 min)
 ```bash
 npx tsx tests/06-transfer.ts
 ```
 
 **Was Sie lernen:**
 - Anrufe zu SIP-Benutzern weiterleiten
-- Anrufe zu Telefonnummern weiterleiten
 - Sequential vs. Parallel Bridging
 
 **Erwartetes Ergebnis:**
-Anruf wird weitergeleitet (je nach Konfiguration an SIP-User oder Telefonnummer).
+Anruf wird an den SIP-Benutzer "cwschroeder" weitergeleitet.
 
 ---
 

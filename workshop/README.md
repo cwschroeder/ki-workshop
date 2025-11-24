@@ -9,10 +9,8 @@ Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Vo
 - Spracheingabe (ASR) verarbeiten
 - DTMF-Eingaben (Zifferntasten) erfassen
 - Professionelle Ansagen abspielen
-- Anrufe weiterleiten (Transfer/Bridge)
+- Anrufe zu SIP-Benutzern weiterleiten
 - Anrufaufzeichnung nutzen
-- Ausgehende Anrufe tätigen (MakeCall)
-- SMS versenden
 
 **Teil 2: Praxis-Projekt Zählerstandserfassung**
 - Voice-Bot mit KI-Unterstützung bauen
@@ -39,10 +37,24 @@ npm install
 
 ### 2. Umgebungsvariable konfigurieren
 
+**macOS/Linux:**
 ```bash
 cp .env.example .env
-# Editiere .env und setze deine Telefonnummer:
-# PHONE_NUMBER=+4940...
+```
+
+**Windows (PowerShell):**
+```powershell
+copy .env.example .env
+```
+
+**Windows (CMD):**
+```cmd
+copy .env.example .env
+```
+
+Editiere `.env` und setze deine Telefonnummer:
+```
+PHONE_NUMBER=+4940...
 ```
 
 ### 3. Erstes Test-Skript starten
@@ -118,12 +130,11 @@ Lernen Sie:
 npx tsx tests/05-announcement.ts
 ```
 
-#### Test 06: Transfer - Anrufweiterleitung (15 min)
+#### Test 06: Transfer - Anrufweiterleitung zu SIP (15 min)
 **Datei:** `tests/06-transfer.ts`
 
 Lernen Sie:
 - Anrufe zu SIP-Benutzern weiterleiten
-- Anrufe zu Telefonnummern weiterleiten
 - Sequential vs. Parallel Bridging
 
 ```bash

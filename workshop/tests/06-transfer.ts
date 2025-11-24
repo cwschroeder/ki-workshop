@@ -1,7 +1,7 @@
 /**
  * Test Client - BRIDGE (Call Transfer)
  *
- * Tests call transfer functionality with BRIDGE block
+ * Tests call transfer functionality with BRIDGE block to SIP users.
  *
  * Bridge Modes:
  * - SEQUENTIAL: Try destinations one after another until one answers
@@ -10,20 +10,18 @@
  * - PARALLEL: Ring all destinations simultaneously (first to answer wins)
  *   Use case: Ring entire team at once, whoever picks up first gets the call
  *
- * Multiple Destinations Example (modify server-side Provider):
+ * Multiple Destinations Example:
  *
  * SEQUENTIAL (one after another):
  *   destinations: [
  *     { destination: 'alice', destinationType: 'SIP_USER', timeout: 20 },
- *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 20 },
- *     { destination: '+4940123456', destinationType: 'PHONE_NUMBER', timeout: 30 }
+ *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 20 }
  *   ]
  *
  * PARALLEL (all at once):
  *   destinations: [
  *     { destination: 'alice', destinationType: 'SIP_USER', timeout: 30 },
- *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 30 },
- *     { destination: '+4940123456', destinationType: 'PHONE_NUMBER', timeout: 30 }
+ *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 30 }
  *   ]
  */
 
@@ -62,8 +60,7 @@ async function main() {
     console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
     console.log('\n📋 Test-Ablauf:');
     console.log('   1. Willkommensnachricht');
-    console.log('   2. DTMF-Menü (drücken Sie 1 für SIP-Transfer oder 2 für Telefon-Transfer)');
-    console.log('   3. Anruf-Weiterleitung zum ausgewählten Ziel\n');
+    console.log('   2. Weiterleitung zu SIP-Benutzer "cwschroeder"\n');
     console.log('⏳ Warte auf Anrufe...\n');
 
     session.on('call.incoming', async (call) => {
@@ -77,46 +74,18 @@ async function main() {
       try {
         console.log('\n▶️  Starte Transfer-Test...\n');
 
-        // Welcome and transfer selection
-        console.log('   [Test] Transfer-Menü...');
-        await call.say('Willkommen zum Transfer-Test.');
-        await call.say('Drücken Sie die 1 für SIP-Weiterleitung oder die 2 für Telefon-Weiterleitung.');
+        // Welcome and transfer
+        console.log('   [Test] Begrüßung...');
+        await call.say('Willkommen zum Transfer-Test. Sie werden jetzt zu einem SIP-Benutzer weitergeleitet.');
 
-        const choice = await call.collectDigits({
-          maxDigits: 1,
-          announcementName: 'IVU_TEST_1',
-          errorAnnouncementName: 'IVU_TEST_1'
+        console.log('   [Transfer] Verbinde mit SIP-Benutzer "cwschroeder"...');
+        await call.bridge('cwschroeder', {
+          destinationType: 'SIP_USER',    // SIP_USER für Weiterleitung an SIP-Account
+          timeout: 30,                     // Optional: Timeout in Sekunden (default: 30)
+          // bridgeMode: 'SEQUENTIAL'      // Optional: 'SEQUENTIAL' oder 'PARALLEL' (default: SEQUENTIAL)
+          //                               // SEQUENTIAL: Ziele nacheinander anrufen
+          //                               // PARALLEL: Alle Ziele gleichzeitig anrufen
         });
-
-        console.log('   ✅ Benutzer drückte:', choice);
-
-        // Transfer based on choice
-        if (choice === '1') {
-          await call.say('Sie werden zu einem SIP-Benutzer weitergeleitet.');
-          console.log('   [Transfer] Verbinde mit SIP-Benutzer...');
-
-          await call.bridge('cwschroeder', {
-            destinationType: 'SIP_USER',    // Optional: 'SIP_USER' or 'PHONE_NUMBER' (default: SIP_USER)
-            timeout: 30,                     // Optional: Timeout in seconds (default: 30)
-            // bridgeMode: 'SEQUENTIAL'      // Optional: 'SEQUENTIAL' or 'PARALLEL' (default: SEQUENTIAL)
-            //                               // SEQUENTIAL: Try destinations one after another
-            //                               // PARALLEL: Ring all destinations simultaneously
-          });
-
-        } else if (choice === '2') {
-          await call.say('Sie werden zu einer Telefonnummer weitergeleitet.');
-          console.log('   [Transfer] Verbinde mit Telefonnummer...');
-
-          await call.bridge('+4940123456', {
-            destinationType: 'PHONE_NUMBER',
-            timeout: 30
-            // bridgeMode: 'SEQUENTIAL'      // Optional: 'SEQUENTIAL' or 'PARALLEL' (default: SEQUENTIAL)
-          });
-
-        } else {
-          await call.say('Ungültige Eingabe. Transfer wird abgebrochen.');
-          await call.hangup('Auf Wiedersehen.');
-        }
 
         console.log('\n✅ Transfer-Test abgeschlossen!\n');
         console.log('='.repeat(60));

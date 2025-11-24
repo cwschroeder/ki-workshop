@@ -53,6 +53,31 @@ export interface CallHandle {
     maxTurns?: number;
   }): Promise<{ messages: any[]; turnCount: number }>;
 
+  /** Einzelne Chat-Nachricht senden (granular) */
+  chat(options: {
+    userMessage?: string;
+    systemPrompt?: string;
+    collectSpeech?: boolean;
+    temperature?: number;
+    maxTokens?: number;
+    validation?: {
+      type: 'number' | 'customer_id' | 'meter_reading';
+      min?: number;
+      max?: number;
+      plausibilityCheck?: (value: any) => boolean;
+    };
+  }): Promise<{
+    aiResponse: string;
+    userInput?: string;
+    extracted?: {
+      customerNumber?: string;
+      meterNumber?: string;
+      reading?: number;
+    };
+    isValid: boolean;
+    validationError?: string;
+  }>;
+
   /** Kundeninformationen aus Text extrahieren */
   extractCustomerInfo(text: string): Promise<{
     customerNumber?: string;
@@ -344,6 +369,87 @@ export class VoiceSession extends EventEmitter {
             this.off('ai.response', handler);
             resolve({ messages, turnCount });
           }, (options.maxTurns || 10) * 30000);
+        });
+      },
+
+      chat: async (options) => {
+        let userInput: string | undefined;
+
+        // Collect speech if requested
+        if (options.collectSpeech) {
+          await this.sendAction({
+            type: 'collect_speech',
+            language: 'de-DE',
+            prompt: options.userMessage
+          });
+          userInput = await new Promise<string>((resolve) => {
+            this.once('call.user_input', resolve);
+          });
+        } else if (options.userMessage) {
+          userInput = options.userMessage;
+        }
+
+        // Send chat message to server
+        return new Promise((resolve, reject) => {
+          this.socket?.emit('chat.message', {
+            userMessage: userInput,
+            systemPrompt: options.systemPrompt,
+            temperature: options.temperature || 0.7,
+            maxTokens: options.maxTokens || 150
+          }, async (response: any) => {
+            if (response.error) {
+              reject(new Error(response.error));
+              return;
+            }
+
+            const aiResponse = response.response || '';
+            let extracted: any = {};
+            let isValid = true;
+            let validationError: string | undefined;
+
+            // Extract customer info if validation requested
+            if (options.validation) {
+              extracted = await this.socket ? new Promise((resolveExtract) => {
+                this.socket?.emit('extract.info', { text: userInput || '' }, (extractResponse: any) => {
+                  resolveExtract(extractResponse || {});
+                });
+              }) : {};
+
+              // Perform validation
+              const { type, min, max, plausibilityCheck } = options.validation;
+
+              if (type === 'number' && extracted.reading !== undefined) {
+                const value = extracted.reading;
+                if (min !== undefined && value < min) {
+                  isValid = false;
+                  validationError = `Wert ${value} ist kleiner als Minimum ${min}`;
+                } else if (max !== undefined && value > max) {
+                  isValid = false;
+                  validationError = `Wert ${value} ist größer als Maximum ${max}`;
+                } else if (plausibilityCheck && !plausibilityCheck(value)) {
+                  isValid = false;
+                  validationError = 'Plausibilitätsprüfung fehlgeschlagen';
+                }
+              } else if (type === 'customer_id' && !extracted.customerNumber) {
+                isValid = false;
+                validationError = 'Keine Kundennummer erkannt';
+              } else if (type === 'meter_reading' && !extracted.meterNumber) {
+                isValid = false;
+                validationError = 'Keine Zählernummer erkannt';
+              }
+            }
+
+            // Speak AI response
+            await this.sendAction({ type: 'say', text: aiResponse });
+
+            resolve({
+              aiResponse,
+              userInput,
+              extracted,
+              isValid,
+              validationError
+            });
+          });
         });
       },
 
