@@ -42,12 +42,12 @@ async function main() {
   // Assign phone number (required from environment)
   const phoneNumber = process.env.PHONE_NUMBER;
   if (!phoneNumber) {
-    console.error('❌ ERROR: PHONE_NUMBER environment variable is not set!');
+    console.error('❌ FEHLER: PHONE_NUMBER Umgebungsvariable ist nicht gesetzt!');
     console.error('');
-    console.error('Please set your phone number:');
-    console.error('  1. Copy .env.example to .env');
-    console.error('  2. Edit .env and set PHONE_NUMBER=+49...');
-    console.error('  3. Run the script again');
+    console.error('Bitte setzen Sie Ihre Telefonnummer:');
+    console.error('  1. Kopieren Sie .env.example nach .env');
+    console.error('  2. Bearbeiten Sie .env und setzen Sie PHONE_NUMBER=+49...');
+    console.error('  3. Führen Sie das Skript erneut aus');
     console.error('');
     process.exit(1);
   }
@@ -104,7 +104,7 @@ async function main() {
 
   // Handle incoming call
   session.on('call.incoming', async (call: any) => {
-    console.log(`📞 Anruf empfangen: ${call.callId}\n`);
+    console.log(`📞 Eingehender Anruf: ${call.callId}\n`);
 
     // We need the call_uuid from API to start recording
     // This is provided in the call data from the API webhook
@@ -159,7 +159,7 @@ async function main() {
   });
 
   // Keep running
-  console.log('Drücke Ctrl+C zum Beenden\n');
+  console.log('Drücken Sie Ctrl+C zum Beenden\n');
 
   // Prevent process from exiting
   await new Promise(() => {});

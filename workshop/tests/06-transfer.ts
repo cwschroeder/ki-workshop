@@ -39,46 +39,46 @@ async function main() {
       // serverUrl is used from lib/ivu-voice-client.ts default: wss://mqtt.ivu-software.de:443
     });
 
-    console.log('✅ Connected to IVU Voice API Server');
+    console.log('✅ Verbunden mit IVU Voice API Server');
 
     const phoneNumber = process.env.PHONE_NUMBER;
     if (!phoneNumber) {
-      console.error('❌ ERROR: PHONE_NUMBER environment variable is not set!');
+      console.error('❌ FEHLER: PHONE_NUMBER Umgebungsvariable ist nicht gesetzt!');
       console.error('');
-      console.error('Please set your phone number:');
-      console.error('  1. Copy .env.example to .env');
-      console.error('  2. Edit .env and set PHONE_NUMBER=+49...');
-      console.error('  3. Run the script again');
+      console.error('Bitte setzen Sie Ihre Telefonnummer:');
+      console.error('  1. Kopieren Sie .env.example nach .env');
+      console.error('  2. Bearbeiten Sie .env und setzen Sie PHONE_NUMBER=+49...');
+      console.error('  3. Führen Sie das Skript erneut aus');
       console.error('');
       process.exit(1);
     }
 
     await session.assignPhoneNumber(phoneNumber);
-    console.log('✅ Phone number assigned:', phoneNumber);
+    console.log('✅ Telefonnummer zugewiesen:', phoneNumber);
 
     console.log('\n' + '='.repeat(60));
-    console.log('🎉 Transfer Test Client Ready!');
+    console.log('🎉 Transfer-Test-Client bereit!');
     console.log('='.repeat(60));
-    console.log('\n💡 Call now:', phoneNumber);
-    console.log('\n📋 Test Flow:');
-    console.log('   1. Welcome message');
-    console.log('   2. DTMF menu (press 1 for SIP transfer or 2 for phone transfer)');
-    console.log('   3. Call transfer to selected destination\n');
-    console.log('⏳ Waiting for calls...\n');
+    console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
+    console.log('\n📋 Test-Ablauf:');
+    console.log('   1. Willkommensnachricht');
+    console.log('   2. DTMF-Menü (drücken Sie 1 für SIP-Transfer oder 2 für Telefon-Transfer)');
+    console.log('   3. Anruf-Weiterleitung zum ausgewählten Ziel\n');
+    console.log('⏳ Warte auf Anrufe...\n');
 
     session.on('call.incoming', async (call) => {
       console.log('\n' + '🔔 '.repeat(30));
-      console.log('📞 INCOMING CALL!');
+      console.log('📞 EINGEHENDER ANRUF!');
       console.log('🔔 '.repeat(30));
-      console.log('\n📋 Call Details:');
-      console.log('   Call ID:', call.callId);
-      console.log('   Time:', new Date().toLocaleString('de-DE'));
+      console.log('\n📋 Anruf Details:');
+      console.log('   Anruf ID:', call.callId);
+      console.log('   Zeit:', new Date().toLocaleString('de-DE'));
 
       try {
-        console.log('\n▶️  Starting transfer test...\n');
+        console.log('\n▶️  Starte Transfer-Test...\n');
 
         // Welcome and transfer selection
-        console.log('   [Test] Transfer Menu...');
+        console.log('   [Test] Transfer-Menü...');
         await call.say('Willkommen zum Transfer-Test.');
         await call.say('Drücken Sie die 1 für SIP-Weiterleitung oder die 2 für Telefon-Weiterleitung.');
 
@@ -88,12 +88,12 @@ async function main() {
           errorAnnouncementName: 'IVU_TEST_1'
         });
 
-        console.log('   ✅ User pressed:', choice);
+        console.log('   ✅ Benutzer drückte:', choice);
 
         // Transfer based on choice
         if (choice === '1') {
           await call.say('Sie werden zu einem SIP-Benutzer weitergeleitet.');
-          console.log('   [Transfer] Bridging to SIP user...');
+          console.log('   [Transfer] Verbinde mit SIP-Benutzer...');
 
           await call.bridge('cwschroeder', {
             destinationType: 'SIP_USER',    // Optional: 'SIP_USER' or 'PHONE_NUMBER' (default: SIP_USER)
@@ -105,7 +105,7 @@ async function main() {
 
         } else if (choice === '2') {
           await call.say('Sie werden zu einer Telefonnummer weitergeleitet.');
-          console.log('   [Transfer] Bridging to phone number...');
+          console.log('   [Transfer] Verbinde mit Telefonnummer...');
 
           await call.bridge('+4940123456', {
             destinationType: 'PHONE_NUMBER',
@@ -118,13 +118,13 @@ async function main() {
           await call.hangup('Auf Wiedersehen.');
         }
 
-        console.log('\n✅ Transfer test completed!\n');
+        console.log('\n✅ Transfer-Test abgeschlossen!\n');
         console.log('='.repeat(60));
-        console.log('💡 Call again or press Ctrl+C to stop');
+        console.log('💡 Rufen Sie erneut an oder drücken Sie Ctrl+C zum Beenden');
         console.log('='.repeat(60) + '\n');
 
       } catch (error) {
-        console.error('\n❌ Error during test:');
+        console.error('\n❌ Fehler während des Tests:');
         console.error(error);
         console.log('');
       }
@@ -132,33 +132,33 @@ async function main() {
 
     // User input handler
     session.on('call.user_input', (input) => {
-      console.log('💬 User input received:', input);
+      console.log('💬 Benutzereingabe erhalten:', input);
     });
 
     // Call ended handler
     session.on('call.ended', (callId) => {
-      console.log('📵 Call ended:', callId);
-      console.log('⏳ Waiting for next call...\n');
+      console.log('📵 Anruf beendet:', callId);
+      console.log('⏳ Warte auf nächsten Anruf...\n');
     });
 
     // Error handler
     session.on('error', (error) => {
-      console.error('\n❌ Session error:');
+      console.error('\n❌ Session-Fehler:');
       console.error(error);
       console.log('');
     });
 
     // Keep alive
     process.on('SIGINT', () => {
-      console.log('\n\n👋 Shutting down...');
+      console.log('\n\n👋 Fahre herunter...');
       session.stop();
-      console.log('✅ Disconnected');
-      console.log('Goodbye!\n');
+      console.log('✅ Verbindung getrennt');
+      console.log('Auf Wiedersehen!\n');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('\n❌ Fatal error:');
+    console.error('\n❌ Schwerwiegender Fehler:');
     console.error(error);
     process.exit(1);
   }

@@ -15,31 +15,31 @@ async function main() {
 
   try {
     // Connect to IVU Voice API Server
-    console.log('\n📡 Connecting to IVU Voice API...');
+    console.log('\n📡 Verbinde mit IVU Voice API...');
     const session = await createVoiceSession({
       // serverUrl is used from lib/ivu-voice-client.ts default: wss://mqtt.ivu-software.de:443
     });
 
-    console.log('✅ Connected to IVU Voice API Server');
+    console.log('✅ Verbunden mit IVU Voice API Server');
 
     // Rufnummer zuweisen
-    console.log('\n📞 Assigning phone number...');
+    console.log('\n📞 Weise Telefonnummer zu...');
 
     // Test-Rufnummer (required from environment)
     const phoneNumber = process.env.PHONE_NUMBER;
     if (!phoneNumber) {
-      console.error('❌ ERROR: PHONE_NUMBER environment variable is not set!');
+      console.error('❌ FEHLER: PHONE_NUMBER Umgebungsvariable ist nicht gesetzt!');
       console.error('');
-      console.error('Please set your phone number:');
-      console.error('  1. Copy .env.example to .env');
-      console.error('  2. Edit .env and set PHONE_NUMBER=+49...');
-      console.error('  3. Run the script again');
+      console.error('Bitte setzen Sie Ihre Telefonnummer:');
+      console.error('  1. Kopieren Sie .env.example nach .env');
+      console.error('  2. Bearbeiten Sie .env und setzen Sie PHONE_NUMBER=+49...');
+      console.error('  3. Führen Sie das Skript erneut aus');
       console.error('');
       process.exit(1);
     }
 
     await session.assignPhoneNumber(phoneNumber);
-    console.log('✅ Phone number assigned:', phoneNumber);
+    console.log('✅ Telefonnummer zugewiesen:', phoneNumber);
 
     console.log('\n' + '='.repeat(60));
     console.log('🎉 Test-Client bereit!');
@@ -52,24 +52,24 @@ async function main() {
     console.log('   4. Dieser Client empfängt call.incoming Event');
     console.log('   5. Client antwortet mit SAY + HANGUP');
     console.log('   6. Sie hören die Ansage am Telefon\n');
-    console.log('⏳ Waiting for calls...\n');
-    console.log('Press Ctrl+C to stop\n');
+    console.log('⏳ Warte auf Anrufe...\n');
+    console.log('Drücken Sie Ctrl+C zum Beenden\n');
 
     // Call-Handler registrieren
     session.on('call.incoming', async (call) => {
       console.log('\n' + '🔔 '.repeat(30));
-      console.log('📞 INCOMING CALL!');
+      console.log('📞 EINGEHENDER ANRUF!');
       console.log('🔔 '.repeat(30));
-      console.log('\n📋 Call Details:');
-      console.log('   Call ID:', call.callId);
+      console.log('\n📋 Anruf Details:');
+      console.log('   Anruf ID:', call.callId);
       console.log('   Session:', call.sessionId);
-      console.log('   Time:', new Date().toLocaleString('de-DE'));
+      console.log('   Zeit:', new Date().toLocaleString('de-DE'));
 
       try {
-        console.log('\n▶️  Executing call flow...\n');
+        console.log('\n▶️  Führe Anruf-Ablauf aus...\n');
 
         // Schritt 1: Begrüßung
-        console.log('   [1/3] Saying hello...');
+        console.log('   [1/3] Sage Hallo...');
         await call.say('Hallo! Willkommen beim IVU Voice API Test.'
           // Optional parameters:
           // { voice: 'de.female.2' }  // Voice name (default: de.female.2)
@@ -77,20 +77,20 @@ async function main() {
         );
 
         // Schritt 2: Status
-        console.log('   [2/3] Confirming test...');
+        console.log('   [2/3] Bestätige Test...');
         await call.say('Die IVU Voice API funktioniert einwandfrei.');
 
         // Schritt 3: Verabschiedung
-        console.log('   [3/3] Hanging up...');
+        console.log('   [3/3] Lege auf...');
         await call.hangup('Vielen Dank. Auf Wiedersehen!');
 
-        console.log('\n✅ Call handled successfully!\n');
+        console.log('\n✅ Anruf erfolgreich behandelt!\n');
         console.log('=' .repeat(60));
         console.log('💡 Sie können erneut anrufen oder Ctrl+C drücken');
         console.log('=' .repeat(60) + '\n');
 
       } catch (error) {
-        console.error('\n❌ Error handling call:');
+        console.error('\n❌ Fehler bei der Anruf-Behandlung:');
         console.error(error);
         console.log('');
       }
@@ -98,49 +98,49 @@ async function main() {
 
     // User-Input Handler (wenn collectSpeech/collectDigits verwendet wird)
     session.on('call.user_input', (input) => {
-      console.log('💬 User input received:', input);
+      console.log('💬 Benutzereingabe erhalten:', input);
     });
 
     // Call-Ended Handler
     session.on('call.ended', (callId) => {
-      console.log('📵 Call ended:', callId);
-      console.log('⏳ Waiting for next call...\n');
+      console.log('📵 Anruf beendet:', callId);
+      console.log('⏳ Warte auf nächsten Anruf...\n');
     });
 
     // Error Handler
     session.on('error', (error) => {
-      console.error('\n❌ Session error:');
+      console.error('\n❌ Session-Fehler:');
       console.error(error);
       console.log('');
     });
 
     // Disconnected Handler
     session.on('disconnected', (reason) => {
-      console.log('\n⚠️  Disconnected from server:', reason);
-      console.log('Attempting to reconnect...\n');
+      console.log('\n⚠️  Vom Server getrennt:', reason);
+      console.log('Versuche erneut zu verbinden...\n');
     });
 
     // Session Ready Handler
     session.on('session.ready', (data) => {
-      console.log('🎯 Session ready:', data);
+      console.log('🎯 Session bereit:', data);
     });
 
     // Keep alive - script läuft bis Ctrl+C
     process.on('SIGINT', () => {
-      console.log('\n\n👋 Shutting down test client...');
+      console.log('\n\n👋 Fahre Test-Client herunter...');
       session.stop();
-      console.log('✅ Disconnected from server');
-      console.log('Goodbye!\n');
+      console.log('✅ Vom Server getrennt');
+      console.log('Auf Wiedersehen!\n');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('\n❌ Fatal error:');
+    console.error('\n❌ Schwerwiegender Fehler:');
     console.error(error);
-    console.log('\n💡 Troubleshooting:');
-    console.log('   - Check your network connection');
-    console.log('   - Verify the IVU Voice API Server is accessible');
-    console.log('   - Check server logs for errors\n');
+    console.log('\n💡 Problemlösung:');
+    console.log('   - Prüfen Sie Ihre Netzwerkverbindung');
+    console.log('   - Überprüfen Sie, ob der IVU Voice API Server erreichbar ist');
+    console.log('   - Prüfen Sie die Server-Logs auf Fehler\n');
     process.exit(1);
   }
 }

@@ -50,15 +50,15 @@ async function main() {
     });
 
     console.log('✅ SMS erfolgreich gesendet!');
-    console.log(`Message URI: ${result.messageUri}`);
+    console.log(`Nachrichten URI: ${result.messageUri}`);
     console.log(`Status: ${result.status}`);
   } catch (error: any) {
     console.error('❌ Fehler beim SMS-Versand:');
     console.error(error.message);
 
     if (error.message.includes('Account-SID and Auth Token')) {
-      console.log('\n⚠️  SMS API ist nicht aktiviert oder Credentials fehlen!');
-      console.log('Kontaktiere IVU Voice API Support für Aktivierung.');
+      console.log('\n⚠️  SMS API ist nicht aktiviert oder Zugangsdaten fehlen!');
+      console.log('Kontaktieren Sie IVU Voice API Support für Aktivierung.');
     }
   }
 

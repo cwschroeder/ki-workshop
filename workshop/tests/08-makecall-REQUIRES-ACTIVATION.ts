@@ -45,73 +45,73 @@ async function main() {
       // serverUrl is used from lib/ivu-voice-client.ts default: wss://mqtt.ivu-software.de:443
     });
 
-    console.log('✅ Connected to IVU Voice API Server');
+    console.log('✅ Verbunden mit IVU Voice API Server');
 
     // Assign phone number that will receive the outbound call (Leg B)
     const phoneNumber = process.env.PHONE_NUMBER;
     if (!phoneNumber) {
-      console.error('❌ ERROR: PHONE_NUMBER environment variable is not set!');
+      console.error('❌ FEHLER: PHONE_NUMBER Umgebungsvariable ist nicht gesetzt!');
       console.error('');
-      console.error('Please set your phone number:');
-      console.error('  1. Copy .env.example to .env');
-      console.error('  2. Edit .env and set PHONE_NUMBER=+49...');
-      console.error('  3. Run the script again');
+      console.error('Bitte setzen Sie Ihre Telefonnummer:');
+      console.error('  1. Kopieren Sie .env.example nach .env');
+      console.error('  2. Bearbeiten Sie .env und setzen Sie PHONE_NUMBER=+49...');
+      console.error('  3. Führen Sie das Skript erneut aus');
       console.error('');
       process.exit(1);
     }
 
     await session.assignPhoneNumber(phoneNumber);
-    console.log('✅ Phone number assigned:', phoneNumber);
+    console.log('✅ Telefonnummer zugewiesen:', phoneNumber);
 
     console.log('\n' + '='.repeat(60));
-    console.log('🎉 MakeCall Test Client Ready!');
+    console.log('🎉 MakeCall-Test-Client bereit!');
     console.log('='.repeat(60));
 
     // Configure outbound call parameters
     const destinationNumber = '+491757039338'; // Number to call (ohne führende 0 bei internationaler Vorwahl)
     const assignedNumber = phoneNumber; // Rufnummer with routing plan
 
-    console.log('\n📋 Outbound Call Configuration:');
-    console.log(`   Destination: ${destinationNumber}`);
+    console.log('\n📋 Ausgehende Anruf-Konfiguration:');
+    console.log(`   Ziel: ${destinationNumber}`);
     console.log(`   Rufnummer: ${assignedNumber}`);
-    console.log(`   Call flow:`);
-    console.log(`     1. API calls ${destinationNumber}`);
-    console.log(`     2. When answered, API calls ${assignedNumber}`);
-    console.log(`     3. Routing plan executes (this session handles it)`);
-    console.log(`     4. Both legs are bridged`);
+    console.log(`   Anruf-Ablauf:`);
+    console.log(`     1. API ruft ${destinationNumber} an`);
+    console.log(`     2. Wenn abgenommen, ruft API ${assignedNumber} an`);
+    console.log(`     3. Routingplan wird ausgeführt (diese Session verarbeitet ihn)`);
+    console.log(`     4. Beide Leitungen werden verbunden`);
 
     // Wait for user confirmation
-    console.log('\n⚠️  Press Ctrl+C to cancel, or wait 5 seconds to initiate call...\n');
+    console.log('\n⚠️  Drücken Sie Ctrl+C zum Abbrechen oder warten Sie 5 Sekunden zum Anruf-Start...\n');
     await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Initiate outbound call
-    console.log('📞 Initiating outbound call...');
+    console.log('📞 Initiiere ausgehenden Anruf...');
     const result = await session.makeCall({
       destinationNumber,
       teniosNumber: assignedNumber,
       callerId: assignedNumber // Optional: Show phone number as caller ID
     });
 
-    console.log(`✅ Call initiated! Callback ID: ${result.callbackId}`);
-    console.log('\n📋 What happens next:');
-    console.log(`   1. ${destinationNumber} will ring`);
-    console.log(`   2. When they answer, ${assignedNumber} will ring`);
-    console.log(`   3. This client will receive the call.incoming event`);
-    console.log(`   4. Handle the call in the event handler below\n`);
+    console.log(`✅ Anruf initiiert! Callback ID: ${result.callbackId}`);
+    console.log('\n📋 Was als nächstes passiert:');
+    console.log(`   1. ${destinationNumber} wird klingeln`);
+    console.log(`   2. Wenn abgenommen wird, wird ${assignedNumber} klingeln`);
+    console.log(`   3. Dieser Client wird das call.incoming Event erhalten`);
+    console.log(`   4. Verarbeite den Anruf im Event-Handler unten\n`);
 
     // Handle incoming call (Leg B)
     session.on('call.incoming', async (call) => {
       console.log('\n' + '🔔 '.repeat(30));
-      console.log('📞 INCOMING CALL (Leg B)!');
+      console.log('📞 EINGEHENDER ANRUF (Leg B)!');
       console.log('🔔 '.repeat(30));
-      console.log('\n📋 Call Details:');
-      console.log('   Call ID:', call.callId);
-      console.log('   Time:', new Date().toLocaleString('de-DE'));
-      console.log('   Note: Destination already answered (Leg A)\n');
+      console.log('\n📋 Anruf Details:');
+      console.log('   Anruf ID:', call.callId);
+      console.log('   Zeit:', new Date().toLocaleString('de-DE'));
+      console.log('   Hinweis: Ziel hat bereits abgenommen (Leg A)\n');
 
       try {
         // Greet the destination party
-        console.log('   [Action] Playing greeting...');
+        console.log('   [Aktion] Spiele Begrüßung ab...');
         await call.say('Hallo! Dies ist ein Test-Anruf über die IVU Voice API MakeCall API.');
 
         await call.say('Drücken Sie 1 um die Verbindung zu testen, oder 2 um aufzulegen.');
@@ -122,7 +122,7 @@ async function main() {
           errorAnnouncementName: 'IVU_TEST_1'
         });
 
-        console.log('   ✅ User pressed:', choice);
+        console.log('   ✅ Benutzer drückte:', choice);
 
         if (choice === '1') {
           await call.say('Verbindungstest erfolgreich. Der Anruf wird jetzt beendet.');
@@ -134,13 +134,13 @@ async function main() {
           await call.hangup('Auf Wiedersehen.');
         }
 
-        console.log('\n✅ MakeCall test completed!');
+        console.log('\n✅ MakeCall-Test abgeschlossen!');
         console.log('='.repeat(60));
-        console.log('💡 You can close this client now (Ctrl+C)');
+        console.log('💡 Sie können diesen Client jetzt schließen (Ctrl+C)');
         console.log('='.repeat(60) + '\n');
 
       } catch (error) {
-        console.error('\n❌ Error during call:');
+        console.error('\n❌ Fehler während des Anrufs:');
         console.error(error);
         console.log('');
       }
@@ -148,32 +148,32 @@ async function main() {
 
     // User input handler
     session.on('call.user_input', (input) => {
-      console.log('💬 User input received:', input);
+      console.log('💬 Benutzereingabe erhalten:', input);
     });
 
     // Call ended handler
     session.on('call.ended', (callId) => {
-      console.log('📵 Call ended:', callId);
+      console.log('📵 Anruf beendet:', callId);
     });
 
     // Error handler
     session.on('error', (error) => {
-      console.error('\n❌ Session error:');
+      console.error('\n❌ Session-Fehler:');
       console.error(error);
       console.log('');
     });
 
     // Keep alive
     process.on('SIGINT', () => {
-      console.log('\n\n👋 Shutting down...');
+      console.log('\n\n👋 Fahre herunter...');
       session.stop();
-      console.log('✅ Disconnected');
-      console.log('Goodbye!\n');
+      console.log('✅ Verbindung getrennt');
+      console.log('Auf Wiedersehen!\n');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('\n❌ Fatal error:');
+    console.error('\n❌ Schwerwiegender Fehler:');
     console.error(error);
     process.exit(1);
   }
