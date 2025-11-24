@@ -101,18 +101,17 @@ Professionelle Sprachaufnahme wird abgespielt (keine TTS-Stimme).
 
 ---
 
-### Test 06: Transfer - Anrufweiterleitung (15 min)
+### Test 06: Transfer - Anrufweiterleitung zu SIP (15 min)
 ```bash
 npx tsx tests/06-transfer.ts
 ```
 
 **Was Sie lernen:**
 - Anrufe zu SIP-Benutzern weiterleiten
-- Anrufe zu Telefonnummern weiterleiten
 - Sequential vs. Parallel Bridging
 
 **Erwartetes Ergebnis:**
-Anruf wird weitergeleitet (je nach Konfiguration an SIP-User oder Telefonnummer).
+Anruf wird an den SIP-Benutzer "cwschroeder" weitergeleitet.
 
 ---
 
