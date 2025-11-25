@@ -107,8 +107,19 @@ code --install-extension esbenp.prettier-vscode
 
 #### 6. Claude Code installieren (Empfohlen)
 
-Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal:
+Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal.
 
+**Option A: Native Installer (Empfohlen)**
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Oder mit Homebrew:
+```bash
+brew install --cask claude-code
+```
+
+**Option B: Mit npm**
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
@@ -118,11 +129,7 @@ Verifizieren:
 claude --version
 ```
 
-**Hinweis:** Sie benötigen einen Anthropic API Key oder Claude Pro/Max Subscription.
-Konfiguration:
-```bash
-claude config set apiKey YOUR_API_KEY
-```
+**Hinweis:** Sie benötigen eine Claude Pro/Max Subscription oder Anthropic API Key.
 
 ---
 
@@ -207,8 +214,14 @@ code --install-extension esbenp.prettier-vscode
 
 #### 5. Claude Code installieren (Empfohlen)
 
-Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal:
+Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal.
 
+**Option A: Native Installer (Empfohlen)**
+```powershell
+irm https://claude.ai/install.ps1 | iex
+```
+
+**Option B: Mit npm**
 ```powershell
 npm install -g @anthropic-ai/claude-code
 ```
@@ -218,11 +231,7 @@ Verifizieren:
 claude --version
 ```
 
-**Hinweis:** Sie benötigen einen Anthropic API Key oder Claude Pro/Max Subscription.
-Konfiguration:
-```powershell
-claude config set apiKey YOUR_API_KEY
-```
+**Hinweis:** Sie benötigen eine Claude Pro/Max Subscription oder Anthropic API Key.
 
 #### 6. Windows Terminal installieren (Empfohlen)
 
