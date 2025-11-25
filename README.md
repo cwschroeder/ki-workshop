@@ -97,14 +97,12 @@ Oder manuell von: https://code.visualstudio.com/download
 - **Markdown Preview Enhanced** - Bessere Markdown-Vorschau
 - **ESLint** - JavaScript/TypeScript Linting
 - **Prettier** - Code-Formatierung
-- **GitLens** - Git-Integration
 
 Oder per Terminal:
 ```bash
 code --install-extension shd101wyy.markdown-preview-enhanced
 code --install-extension dbaeumer.vscode-eslint
 code --install-extension esbenp.prettier-vscode
-code --install-extension eamodio.gitlens
 ```
 
 #### 6. Claude Code installieren (Empfohlen)
@@ -199,14 +197,12 @@ winget install Microsoft.VisualStudioCode
 - **Markdown Preview Enhanced** - Bessere Markdown-Vorschau
 - **ESLint** - JavaScript/TypeScript Linting
 - **Prettier** - Code-Formatierung
-- **GitLens** - Git-Integration
 
 Oder per PowerShell:
 ```powershell
 code --install-extension shd101wyy.markdown-preview-enhanced
 code --install-extension dbaeumer.vscode-eslint
 code --install-extension esbenp.prettier-vscode
-code --install-extension eamodio.gitlens
 ```
 
 #### 5. Claude Code installieren (Empfohlen)
