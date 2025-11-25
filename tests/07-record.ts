@@ -154,61 +154,40 @@ async function main() {
         console.log(`⚠️  Stop: ${stopError.message}`);
       }
 
-      // Step 6: Retrieve recording (with retry - Tenios needs time to process)
-      console.log('\n📥 Lade Aufzeichnung herunter...');
-      const recordingData = await retrieveRecordingWithRetry(
-        session,
-        recording.recordingUuid
-      );
+      // Step 6: Try to retrieve recording (optional - may require API activation)
+      console.log('\n📥 Versuche Aufzeichnung herunterzuladen...');
+      console.log('   (Hinweis: Download benötigt ggf. API-Aktivierung im Tenios-Portal)\n');
 
-      // Save recording to file
-      const filename = `output/recording-${recording.recordingUuid}.wav`;
-      await fs.mkdir('output', { recursive: true });
-      await fs.writeFile(filename, recordingData.data);
+      try {
+        const recordingData = await retrieveRecordingWithRetry(
+          session,
+          recording.recordingUuid,
+          3,  // fewer retries
+          3000 // longer delay
+        );
 
-      console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
-      console.log(`📊 Content-Type: ${recordingData.contentType}`);
-      console.log(`📏 Größe: ${recordingData.data.length} bytes`);
+        // Save recording to file
+        const filename = `output/recording-${recording.recordingUuid}.wav`;
+        await fs.mkdir('output', { recursive: true });
+        await fs.writeFile(filename, recordingData.data);
+
+        console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
+        console.log(`📊 Content-Type: ${recordingData.contentType}`);
+        console.log(`📏 Größe: ${recordingData.data.length} bytes`);
+      } catch (downloadError: any) {
+        console.log(`⚠️  Download nicht möglich: ${downloadError.message}`);
+        console.log('   Die Aufzeichnung ist aber im Tenios-Portal verfügbar!');
+        console.log('   Portal: https://portal.tenios.de → Aufzeichnungen');
+      }
 
       await call.hangup('Vielen Dank für Ihre Nachricht. Auf Wiederhören!');
 
-      console.log('\n✅ Aufzeichnungs-Test erfolgreich abgeschlossen!');
+      console.log('\n✅ Aufzeichnungs-Test abgeschlossen!');
+      console.log('   Recording UUID:', recording.recordingUuid);
       activeRecordings.delete(call.callId);
 
     } catch (error: any) {
       console.error('❌ Fehler während des Anrufs:', error.message);
-
-      // Try to retrieve recording anyway if we have one
-      const recording = activeRecordings.get(call.callId);
-      if (recording) {
-        console.log('\n📥 Versuche Aufzeichnung trotz Fehler abzurufen...');
-        try {
-          // Try to stop first
-          try {
-            await session.stopRecording({
-              callUuid: recording.callUuid,
-              recordingUuid: recording.recordingUuid
-            });
-          } catch {
-            // Ignore - might already be stopped
-          }
-
-          const recordingData = await retrieveRecordingWithRetry(
-            session,
-            recording.recordingUuid
-          );
-
-          const filename = `output/recording-${recording.recordingUuid}.wav`;
-          await fs.mkdir('output', { recursive: true });
-          await fs.writeFile(filename, recordingData.data);
-
-          console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
-          console.log(`📏 Größe: ${recordingData.data.length} bytes`);
-          activeRecordings.delete(call.callId);
-        } catch (retrieveError: any) {
-          console.error(`❌ Konnte Aufzeichnung nicht abrufen: ${retrieveError.message}`);
-        }
-      }
     }
   });
 

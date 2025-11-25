@@ -192,28 +192,17 @@ export class VoiceSession extends EventEmitter {
     recordCaller?: boolean;
     recordCallee?: boolean;
   }): Promise<{ recordingUuid: string }> {
-    console.log('[CLIENT] startRecording() called with options:', options);
-
     return new Promise((resolve, reject) => {
       if (!this.socket) {
-        console.error('[CLIENT] Socket is null!');
         reject(new Error('Socket not connected'));
         return;
       }
 
-      console.log('[CLIENT] Socket exists:', {
-        connected: this.socket.connected,
-        id: this.socket.id
-      });
-
       const timeout = setTimeout(() => {
-        console.error('[CLIENT] Recording start timeout after 10s');
         reject(new Error('Recording start timeout'));
       }, 10000);
 
-      console.log('[CLIENT] About to emit recording.start event...');
       this.socket.emit('recording.start', options, (response: any) => {
-        console.log('[CLIENT] Callback received! Response:', response);
         clearTimeout(timeout);
         if (response.error) reject(new Error(response.error));
         else {
@@ -221,7 +210,6 @@ export class VoiceSession extends EventEmitter {
           resolve({ recordingUuid: response.recordingUuid });
         }
       });
-      console.log('[CLIENT] emit() called, waiting for callback...');
     });
   }
 
