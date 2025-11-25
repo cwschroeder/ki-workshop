@@ -526,8 +526,8 @@ Erstellen Sie die Datei `data/customers.csv`:
 
 ```csv
 customer_number,meter_number,customer_name
-12345,M-789,Max Mustermann
-67890,M-456,Erika Musterfrau
+12345,789,Max Mustermann
+67890,456,Erika Musterfrau
 ```
 
 **Schritt 2: Customer Lookup Service (20 min)**
