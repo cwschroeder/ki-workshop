@@ -57,50 +57,8 @@ async function main() {
   console.log(`Rufnummer zugewiesen: ${phoneNumber}`);
   console.log('Warte auf eingehenden Anruf...\n');
 
-  // Track active recordings so we can retrieve them after call ends
+  // Track active recordings for error recovery
   const activeRecordings = new Map<string, { callUuid: string; recordingUuid: string }>();
-
-  // Handle call ended event
-  session.on('call.ended', async (callId: string) => {
-    console.log(`\n📵 Anruf beendet: ${callId}`);
-
-    // Check if we have a recording for this call
-    const recording = activeRecordings.get(callId);
-    if (recording) {
-      console.log(`\n📥 Lade Aufzeichnung herunter (${recording.recordingUuid})...`);
-
-      try {
-        // Stop recording first (might already be stopped, that's ok)
-        try {
-          await session.stopRecording({
-            callUuid: recording.callUuid,
-            recordingUuid: recording.recordingUuid
-          });
-          console.log('⏹️  Aufzeichnung gestoppt');
-        } catch (error: any) {
-          console.log(`⚠️  Stop recording: ${error.message} (möglicherweise bereits gestoppt)`);
-        }
-
-        // Retrieve recording
-        const recordingData = await session.retrieveRecording({
-          recordingUuid: recording.recordingUuid
-        });
-
-        // Save recording to file
-        const filename = `recording-${recording.recordingUuid}.wav`;
-        await fs.writeFile(filename, recordingData.data);
-
-        console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
-        console.log(`📊 Content-Type: ${recordingData.contentType}`);
-        console.log(`📏 Größe: ${recordingData.data.length} bytes\n`);
-        console.log('✅ Aufzeichnung erfolgreich abgerufen!\n');
-
-        activeRecordings.delete(callId);
-      } catch (error: any) {
-        console.error(`❌ Fehler beim Abrufen der Aufzeichnung: ${error.message}\n`);
-      }
-    }
-  });
 
   // Handle incoming call
   session.on('call.incoming', async (call: any) => {
@@ -145,16 +103,75 @@ async function main() {
       await call.say('Die Aufzeichnung beginnt jetzt.');
 
       // Step 4: Collect user input during recording
-      // Note: If caller hangs up before speaking, the call.ended event will handle cleanup
-      await call.collectSpeech({
-        prompt: 'Bitte teilen Sie uns Ihr Anliegen mit. Sie können auch einfach auflegen.',
-        timeout: 30
+      const userInput = await call.collectSpeech({
+        prompt: 'Bitte teilen Sie uns Ihr Anliegen mit. Sprechen Sie nach dem Signalton.',
+        timeout: 10
       });
+
+      console.log(`💬 Benutzer sagte: "${userInput}"`);
+
+      await call.say(`Sie sagten: ${userInput}. Die Aufzeichnung wird jetzt beendet.`);
+
+      // Step 5: Stop recording and retrieve
+      console.log('\n⏹️  Stoppe Aufzeichnung...');
+      try {
+        await session.stopRecording({
+          callUuid,
+          recordingUuid: recording.recordingUuid
+        });
+        console.log('✅ Aufzeichnung gestoppt');
+      } catch (stopError: any) {
+        console.log(`⚠️  Stop: ${stopError.message}`);
+      }
+
+      // Step 6: Retrieve recording
+      console.log('\n📥 Lade Aufzeichnung herunter...');
+      const recordingData = await session.retrieveRecording({
+        recordingUuid: recording.recordingUuid
+      });
+
+      // Save recording to file
+      const filename = `output/recording-${recording.recordingUuid}.wav`;
+      await fs.mkdir('output', { recursive: true });
+      await fs.writeFile(filename, recordingData.data);
+
+      console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
+      console.log(`📊 Content-Type: ${recordingData.contentType}`);
+      console.log(`📏 Größe: ${recordingData.data.length} bytes`);
+
+      await call.hangup('Vielen Dank für Ihre Nachricht. Auf Wiederhören!');
+
+      console.log('\n✅ Aufzeichnungs-Test erfolgreich abgeschlossen!');
+      activeRecordings.delete(call.callId);
 
     } catch (error: any) {
       console.error('❌ Fehler während des Anrufs:', error.message);
-      // Don't call hangup here - the call might already be ended
-      // The call.ended event will handle recording retrieval
+
+      // Try to retrieve recording anyway if we have one
+      const recording = activeRecordings.get(call.callId);
+      if (recording) {
+        console.log('\n📥 Versuche Aufzeichnung trotz Fehler abzurufen...');
+        try {
+          await session.stopRecording({
+            callUuid: recording.callUuid,
+            recordingUuid: recording.recordingUuid
+          });
+
+          const recordingData = await session.retrieveRecording({
+            recordingUuid: recording.recordingUuid
+          });
+
+          const filename = `output/recording-${recording.recordingUuid}.wav`;
+          await fs.mkdir('output', { recursive: true });
+          await fs.writeFile(filename, recordingData.data);
+
+          console.log(`💾 Aufzeichnung gespeichert: ${filename}`);
+          console.log(`📏 Größe: ${recordingData.data.length} bytes`);
+          activeRecordings.delete(call.callId);
+        } catch (retrieveError: any) {
+          console.error(`❌ Konnte Aufzeichnung nicht abrufen: ${retrieveError.message}`);
+        }
+      }
     }
   });
 
