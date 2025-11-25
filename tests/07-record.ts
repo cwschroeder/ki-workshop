@@ -29,6 +29,29 @@ import 'dotenv/config';
 import { createVoiceSession } from '../lib/ivu-voice-client';
 import * as fs from 'fs/promises';
 
+// Helper: Wait with retry for recording to be available
+async function retrieveRecordingWithRetry(
+  session: any,
+  recordingUuid: string,
+  maxRetries = 5,
+  delayMs = 2000
+): Promise<{ data: Buffer; contentType: string }> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`   Versuch ${attempt}/${maxRetries}...`);
+      const result = await session.retrieveRecording({ recordingUuid });
+      return result;
+    } catch (error: any) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      console.log(`   ⏳ Aufzeichnung noch nicht bereit, warte ${delayMs / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
 async function main() {
   console.log('=== IVU Voice API Recording API Test ===\n');
 
@@ -57,11 +80,18 @@ async function main() {
   console.log(`Rufnummer zugewiesen: ${phoneNumber}`);
   console.log('Warte auf eingehenden Anruf...\n');
 
-  // Track active recordings for error recovery
+  // Track active recordings and processed calls
   const activeRecordings = new Map<string, { callUuid: string; recordingUuid: string }>();
+  const processedCalls = new Set<string>();
 
-  // Handle incoming call
+  // Handle incoming call (use once to prevent duplicate processing)
   session.on('call.incoming', async (call: any) => {
+    // Prevent duplicate processing
+    if (processedCalls.has(call.callId)) {
+      return;
+    }
+    processedCalls.add(call.callId);
+
     console.log(`📞 Eingehender Anruf: ${call.callId}\n`);
 
     // We need the call_uuid from API to start recording
@@ -124,11 +154,12 @@ async function main() {
         console.log(`⚠️  Stop: ${stopError.message}`);
       }
 
-      // Step 6: Retrieve recording
+      // Step 6: Retrieve recording (with retry - Tenios needs time to process)
       console.log('\n📥 Lade Aufzeichnung herunter...');
-      const recordingData = await session.retrieveRecording({
-        recordingUuid: recording.recordingUuid
-      });
+      const recordingData = await retrieveRecordingWithRetry(
+        session,
+        recording.recordingUuid
+      );
 
       // Save recording to file
       const filename = `output/recording-${recording.recordingUuid}.wav`;
@@ -152,14 +183,20 @@ async function main() {
       if (recording) {
         console.log('\n📥 Versuche Aufzeichnung trotz Fehler abzurufen...');
         try {
-          await session.stopRecording({
-            callUuid: recording.callUuid,
-            recordingUuid: recording.recordingUuid
-          });
+          // Try to stop first
+          try {
+            await session.stopRecording({
+              callUuid: recording.callUuid,
+              recordingUuid: recording.recordingUuid
+            });
+          } catch {
+            // Ignore - might already be stopped
+          }
 
-          const recordingData = await session.retrieveRecording({
-            recordingUuid: recording.recordingUuid
-          });
+          const recordingData = await retrieveRecordingWithRetry(
+            session,
+            recording.recordingUuid
+          );
 
           const filename = `output/recording-${recording.recordingUuid}.wav`;
           await fs.mkdir('output', { recursive: true });
