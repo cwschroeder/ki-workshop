@@ -20,12 +20,280 @@ Willkommen zum IVU Voice API Workshop! In diesem Workshop lernen Sie, wie Sie Vo
 - CSV-Dateien lesen und schreiben
 - Fehlerbehandlung implementieren
 
-## 📋 Voraussetzungen
+---
 
+## 🛠️ Vorbereitung: Software installieren
+
+Bevor Sie am Workshop teilnehmen, installieren Sie bitte die folgende Software. Wählen Sie die Anleitung für Ihr Betriebssystem.
+
+### Benötigte Software
+
+| Software | Beschreibung | Pflicht |
+|----------|-------------|---------|
+| **Git** | Versionskontrolle | ✅ Ja |
+| **Node.js 20+** | JavaScript Runtime | ✅ Ja |
+| **Visual Studio Code** | Code-Editor | ✅ Ja |
+| **Claude Code** | KI-gestütztes Coding | ⭐ Empfohlen |
+| **Telefon** | Zum Testen der Anrufe | ✅ Ja |
+
+---
+
+### 🍎 Installation auf macOS
+
+#### 1. Homebrew installieren (falls nicht vorhanden)
+
+Homebrew ist der Paketmanager für macOS. Öffnen Sie das **Terminal** und führen Sie aus:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+#### 2. Git installieren
+
+```bash
+brew install git
+```
+
+Verifizieren:
+```bash
+git --version
+# Erwartete Ausgabe: git version 2.x.x
+```
+
+#### 3. Node.js 20+ installieren
+
+```bash
+brew install node@20
+```
+
+Oder mit Node Version Manager (nvm) für mehrere Node-Versionen:
+```bash
+brew install nvm
+nvm install 20
+nvm use 20
+```
+
+Verifizieren:
+```bash
+node --version
+# Erwartete Ausgabe: v20.x.x oder höher
+
+npm --version
+# Erwartete Ausgabe: 10.x.x oder höher
+```
+
+#### 4. Visual Studio Code installieren
+
+```bash
+brew install --cask visual-studio-code
+```
+
+Oder manuell von: https://code.visualstudio.com/download
+
+#### 5. VS Code Extensions installieren
+
+Öffnen Sie VS Code und installieren Sie diese Extensions (Cmd+Shift+X):
+
+- **Markdown Preview Enhanced** - Bessere Markdown-Vorschau
+- **ESLint** - JavaScript/TypeScript Linting
+- **Prettier** - Code-Formatierung
+- **GitLens** - Git-Integration
+
+Oder per Terminal:
+```bash
+code --install-extension shd101wyy.markdown-preview-enhanced
+code --install-extension dbaeumer.vscode-eslint
+code --install-extension esbenp.prettier-vscode
+code --install-extension eamodio.gitlens
+```
+
+#### 6. Claude Code installieren (Empfohlen)
+
+Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Verifizieren:
+```bash
+claude --version
+```
+
+**Hinweis:** Sie benötigen einen Anthropic API Key oder Claude Pro/Max Subscription.
+Konfiguration:
+```bash
+claude config set apiKey YOUR_API_KEY
+```
+
+---
+
+### 🪟 Installation auf Windows
+
+#### 1. Git installieren
+
+**Option A: Git for Windows (Empfohlen)**
+
+1. Laden Sie Git herunter: https://git-scm.com/download/win
+2. Führen Sie den Installer aus
+3. Wichtige Einstellungen während der Installation:
+   - ✅ "Git Bash Here" aktivieren
+   - ✅ "Use Git from Windows Terminal" auswählen
+   - ✅ "Checkout as-is, commit Unix-style line endings"
+
+**Option B: Mit winget (Windows 11)**
+
+Öffnen Sie **PowerShell als Administrator**:
+```powershell
+winget install Git.Git
+```
+
+Verifizieren (neues Terminal öffnen):
+```powershell
+git --version
+# Erwartete Ausgabe: git version 2.x.x
+```
+
+#### 2. Node.js 20+ installieren
+
+**Option A: Offizieller Installer (Empfohlen)**
+
+1. Laden Sie Node.js LTS herunter: https://nodejs.org/
+2. Führen Sie den Installer aus
+3. ✅ "Automatically install necessary tools" aktivieren
+
+**Option B: Mit winget**
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Verifizieren (neues Terminal öffnen):
+```powershell
+node --version
+# Erwartete Ausgabe: v20.x.x oder höher
+
+npm --version
+# Erwartete Ausgabe: 10.x.x oder höher
+```
+
+#### 3. Visual Studio Code installieren
+
+**Option A: Offizieller Installer**
+
+1. Laden Sie VS Code herunter: https://code.visualstudio.com/download
+2. Führen Sie den Installer aus
+3. ✅ "Add to PATH" aktivieren
+4. ✅ "Register Code as editor for supported file types" aktivieren
+
+**Option B: Mit winget**
+
+```powershell
+winget install Microsoft.VisualStudioCode
+```
+
+#### 4. VS Code Extensions installieren
+
+Öffnen Sie VS Code und installieren Sie diese Extensions (Ctrl+Shift+X):
+
+- **Markdown Preview Enhanced** - Bessere Markdown-Vorschau
+- **ESLint** - JavaScript/TypeScript Linting
+- **Prettier** - Code-Formatierung
+- **GitLens** - Git-Integration
+
+Oder per PowerShell:
+```powershell
+code --install-extension shd101wyy.markdown-preview-enhanced
+code --install-extension dbaeumer.vscode-eslint
+code --install-extension esbenp.prettier-vscode
+code --install-extension eamodio.gitlens
+```
+
+#### 5. Claude Code installieren (Empfohlen)
+
+Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal:
+
+```powershell
+npm install -g @anthropic-ai/claude-code
+```
+
+Verifizieren:
+```powershell
+claude --version
+```
+
+**Hinweis:** Sie benötigen einen Anthropic API Key oder Claude Pro/Max Subscription.
+Konfiguration:
+```powershell
+claude config set apiKey YOUR_API_KEY
+```
+
+#### 6. Windows Terminal installieren (Empfohlen)
+
+Windows Terminal bietet eine bessere Terminal-Erfahrung:
+
+```powershell
+winget install Microsoft.WindowsTerminal
+```
+
+---
+
+### ✅ Installation überprüfen
+
+Führen Sie diese Befehle aus, um Ihre Installation zu überprüfen:
+
+```bash
+# Git
+git --version
+
+# Node.js
+node --version
+
+# npm
+npm --version
+
+# VS Code (öffnet VS Code)
+code --version
+
+# Claude Code (optional)
+claude --version
+```
+
+**Erwartete Mindestversionen:**
+- Git: 2.30+
+- Node.js: 20.0+
+- npm: 10.0+
+
+---
+
+### 🔧 Workshop-Repository klonen
+
+Nach der Installation können Sie das Workshop-Repository klonen:
+
+```bash
+# Repository klonen
+git clone https://github.com/IVU-AG/ki-phone-connect.git
+
+# In Workshop-Verzeichnis wechseln
+cd ki-phone-connect/workshop
+
+# Dependencies installieren
+npm install
+```
+
+---
+
+## 📋 Voraussetzungen (Zusammenfassung)
+
+- **Git** installiert und konfiguriert
 - **Node.js 20+** installiert
 - **npm** (kommt mit Node.js)
+- **Visual Studio Code** mit Extensions
+- **Claude Code** (optional, für KI-gestütztes Coding)
 - **Telefon** zum Testen der Anrufe
 - **IVU Voice API Server** läuft auf `mqtt.ivu-software.de:443`
+
+---
 
 ## 🚀 Schnellstart
 
@@ -177,6 +445,21 @@ Lernen Sie:
 ```bash
 npx tsx tests/09-sendsms-REQUIRES-ACTIVATION.ts
 ```
+
+#### Test 10: Chat API - KI-gestützte Konversationen (15 min)
+**Datei:** `tests/10-chat-api.ts`
+
+Lernen Sie:
+- Die `chat()` API für KI-gestützte Dialoge verwenden
+- Spracheingabe mit KI-Verarbeitung kombinieren
+- Validierung und Datenextraktion durchführen
+- System-Prompts für verschiedene Szenarien gestalten
+
+```bash
+npx tsx tests/10-chat-api.ts
+```
+
+💡 **Tipp:** Dies ist die wichtigste API für den Zählerstand-Bot in Teil 2!
 
 ### Teil 2: Praxis-Projekt Zählerstandserfassung (120 min)
 
@@ -427,7 +710,7 @@ const audio = await session.retrieveRecording({
 // Ausgehenden Anruf initiieren
 const result = await session.makeCall({
   destinationNumber: '+491234567890',
-  teniosNumber: process.env.PHONE_NUMBER,
+  ivuNumber: process.env.PHONE_NUMBER,
   callerId: process.env.PHONE_NUMBER
 });
 ```

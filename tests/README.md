@@ -161,6 +161,151 @@ Eine Test-SMS wird an die konfigurierte Nummer gesendet.
 
 ---
 
+### Test 10: Chat API - KI-gestützte Konversationen (20 min)
+```bash
+npx tsx tests/10-chat-api.ts
+# oder: npm run test:10
+```
+
+**Was Sie lernen:**
+- Die `chat()` API für KI-gestützte Dialoge verwenden
+- Spracheingabe mit KI-Verarbeitung kombinieren
+- Validierung und Datenextraktion durchführen
+- System-Prompts für verschiedene Szenarien gestalten
+
+**Erwartetes Ergebnis:**
+Der Bot führt eine mehrstufige Konversation:
+1. Fragt nach Ihrem Namen (mit Spracheingabe)
+2. Fragt nach Ihrer Lieblingsfarbe (mit Spracheingabe)
+3. Erstellt eine Zusammenfassung (ohne Spracheingabe)
+4. Demonstriert Zahlen-Validierung (1-100)
+
+**💡 Hinweis für Workshop-Teilnehmer:**
+Dieses Test-Skript zeigt alle Möglichkeiten der `chat()` API. Sie können diese API verwenden, um:
+- Einen Zählerstand-Bot zu entwickeln (siehe `src/meter-reading-bot.ts`)
+- Kundennummern zu erfragen und validieren
+- Zählerstände zu sammeln und speichern
+- Fehlerhafte Eingaben elegant zu behandeln
+
+Weitere nützliche Funktionen in `lib/ivu-voice-client.ts`:
+- `session.lookupCustomer(customerNumber)` - Kunde in CSV suchen
+- `session.saveMeterReading({ ... })` - Zählerstand speichern
+- `call.extractCustomerInfo(text)` - Informationen extrahieren
+
+---
+
+### Test 11: STT API - Sprache zu Text (15 min)
+```bash
+npx tsx tests/11-stt-api.ts
+# oder: npm run test:11
+```
+
+**Was Sie lernen:**
+- Die `stt()` API für Audio-Transkription (Speech-to-Text)
+- IVU Voice STT Backend
+- Unterstützung verschiedener Sprachen (de-DE, en-US, etc.)
+- Audio-Buffer verarbeiten
+
+**Erwartetes Ergebnis:**
+1. Audio wird mit TTS generiert (als Test-Input)
+2. Audio wird mit STT transkribiert
+3. Original und Transkription werden verglichen
+4. Schlüsselwörter werden geprüft
+
+**API-Referenz:**
+```typescript
+const result = await session.stt({
+  audio: audioBuffer,      // REQUIRED: Buffer (mp3, wav, etc.)
+  language: 'de-DE',       // OPTIONAL: Sprache (default: 'de-DE')
+  // model: optional, vom Server konfiguriert
+});
+console.log(result.text);  // Transkribierter Text
+```
+
+---
+
+### Test 12: TTS API - Text zu Sprache (15 min)
+```bash
+npx tsx tests/12-tts-api.ts
+# oder: npm run test:12
+```
+
+**Was Sie lernen:**
+- Die `tts()` API für Sprachsynthese (Text-to-Speech)
+- IVU Voice TTS Backend
+- 6 verschiedene Stimmen (alloy, echo, fable, onyx, nova, shimmer)
+- Geschwindigkeitsanpassung (0.25 - 4.0)
+- Mehrsprachigkeit
+
+**Erwartetes Ergebnis:**
+Audio-Dateien werden im `output/` Verzeichnis gespeichert:
+- Deutsche Sprachausgabe
+- Test aller 6 Stimmen
+- Test verschiedener Geschwindigkeiten
+- Englische Sprachausgabe
+- Voice-Bot Antwort
+
+**API-Referenz:**
+```typescript
+const result = await session.tts({
+  text: 'Hallo Welt',      // REQUIRED: Text
+  voice: 'nova',           // OPTIONAL: Stimme (default: 'alloy')
+  language: 'de-DE',       // OPTIONAL: Sprache (default: 'de-DE')
+  speed: 1.0               // OPTIONAL: 0.25-4.0 (default: 1.0)
+});
+await fs.writeFile('output.mp3', result.audio);
+```
+
+**Verfügbare Stimmen:**
+- `alloy` - Neutral, ausgewogen
+- `echo` - Warm, männlich
+- `fable` - Expressiv, britisch
+- `onyx` - Tief, autoritär
+- `nova` - Freundlich, weiblich (empfohlen für Kundenservice)
+- `shimmer` - Sanft, klar
+
+---
+
+### Test 13: Monitor Client - Live-Überwachung (10 min)
+```bash
+npx tsx tests/13-monitor-client.ts
+```
+
+**Was Sie lernen:**
+- Live-Monitoring von aktiven Calls
+- WebSocket-Events für Call-Überwachung
+- Transkript-Streaming
+- **Noise Suppression** mit RNNoise konfigurieren
+
+**Erwartetes Ergebnis:**
+Client verbindet sich mit Monitor-Service und zeigt aktive Calls an.
+
+**Optionen:**
+```bash
+# Standard: Mit RNNoise Rauschunterdrückung (empfohlen)
+npx tsx tests/13-monitor-client.ts
+
+# Mit DTLN Rauschunterdrückung (bessere Qualität)
+npx tsx tests/13-monitor-client.ts --denoiser dtln
+
+# Denoiser deaktivieren
+npx tsx tests/13-monitor-client.ts --denoiser none
+
+# Nur Status und verfügbare Provider anzeigen
+npx tsx tests/13-monitor-client.ts --status
+```
+
+**Noise Suppression (Standard: aktiviert):**
+Zwei neuronale Netzwerk-basierte Denoiser stehen zur Verfügung:
+
+- `rnnoise` - RNNoise Neural Network (Standard, 48kHz, schnell)
+- `dtln` - DTLN LSTM Network (16kHz, bessere Qualität bei Telefonie)
+- `none` - Kein Denoising (Original-Audio)
+
+DTLN arbeitet bei 16kHz (näher an Telefonie 8kHz), was weniger Resampling-Artefakte erzeugt.
+
+---
+
 ## 💡 Tipps
 
 - **Paralleltests**: Jeder Teilnehmer kann seine eigene `.env` mit unterschiedlicher `PHONE_NUMBER` haben

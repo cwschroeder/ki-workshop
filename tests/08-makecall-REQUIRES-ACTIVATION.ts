@@ -88,7 +88,7 @@ async function main() {
     console.log('📞 Initiiere ausgehenden Anruf...');
     const result = await session.makeCall({
       destinationNumber,
-      teniosNumber: assignedNumber,
+      ivuNumber: assignedNumber,
       callerId: assignedNumber // Optional: Show phone number as caller ID
     });
 

@@ -7,7 +7,10 @@
     "example:01": "tsx examples/01-hello-world.ts",
     "example:02": "tsx examples/02-dtmf-menu.ts",
     "example:03": "tsx examples/03-speech-input.ts",
-    "example:04": "tsx examples/04-ai-conversation.ts"
+    "example:04": "tsx examples/04-ai-conversation.ts",
+    "test:10": "tsx tests/10-chat-api.ts",
+    "test:11": "tsx tests/11-stt-api.ts",
+    "test:12": "tsx tests/12-tts-api.ts"
   },
   "keywords": [
     "voice",

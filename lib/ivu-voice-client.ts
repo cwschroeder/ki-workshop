@@ -53,6 +53,16 @@ export interface CallHandle {
     maxTurns?: number;
   }): Promise<{ messages: any[]; turnCount: number }>;
 
+  /** Einfache Chat-Nachricht (Text → KI → Text) */
+  chat(options: {
+    userMessage: string;
+    systemPrompt?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{
+    aiResponse: string;
+  }>;
+
   /** Kundeninformationen aus Text extrahieren */
   extractCustomerInfo(text: string): Promise<{
     customerNumber?: string;
@@ -144,7 +154,7 @@ export class VoiceSession extends EventEmitter {
   /** Ausgehenden Anruf tätigen */
   async makeCall(options: {
     destinationNumber: string;
-    teniosNumber: string;
+    ivuNumber: string;
     callerId?: string;
   }): Promise<{ callbackId: number }> {
     return new Promise((resolve, reject) => {
@@ -248,6 +258,96 @@ export class VoiceSession extends EventEmitter {
     });
   }
 
+  /** Einfache Chat-Nachricht (Text → KI → Text) */
+  async chat(options: {
+    userMessage: string;
+    systemPrompt?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{
+    aiResponse: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('chat.message', {
+        userMessage: options.userMessage,
+        systemPrompt: options.systemPrompt,
+        temperature: options.temperature || 0.7,
+        maxTokens: options.maxTokens || 150
+      }, (response: any) => {
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+
+        resolve({
+          aiResponse: response.response || ''
+        });
+      });
+    });
+  }
+
+  /** Speech-to-Text: Audio transkribieren */
+  async stt(options: {
+    audio: Buffer;
+    language?: string;
+    model?: string;
+  }): Promise<{
+    text: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      // Convert Buffer to base64 for transmission
+      const base64Audio = options.audio.toString('base64');
+
+      this.socket?.emit('stt.transcribe', {
+        audio: base64Audio,
+        language: options.language || 'de-DE',
+        model: options.model
+      }, (response: any) => {
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+
+        resolve({
+          text: response.text || ''
+        });
+      });
+    });
+  }
+
+  /** Text-to-Speech: Text in Audio umwandeln */
+  async tts(options: {
+    text: string;
+    voice?: string;
+    language?: string;
+    speed?: number;
+  }): Promise<{
+    audio: Buffer;
+    contentType: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      this.socket?.emit('tts.synthesize', {
+        text: options.text,
+        voice: options.voice || 'alloy',
+        language: options.language || 'de-DE',
+        speed: options.speed || 1.0
+      }, (response: any) => {
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+
+        // Convert base64 back to Buffer
+        const audioBuffer = Buffer.from(response.audio, 'base64');
+
+        resolve({
+          audio: audioBuffer,
+          contentType: response.contentType || 'audio/mp3'
+        });
+      });
+    });
+  }
+
   /** Kunde in CSV nachschlagen */
   async lookupCustomer(customerNumber: string): Promise<any> {
     const csvPath = path.join(__dirname, '../workshop-data/customers.csv');
@@ -344,6 +444,27 @@ export class VoiceSession extends EventEmitter {
             this.off('ai.response', handler);
             resolve({ messages, turnCount });
           }, (options.maxTurns || 10) * 30000);
+        });
+      },
+
+      chat: async (options) => {
+        // Simple text-to-text chat
+        return new Promise((resolve, reject) => {
+          this.socket?.emit('chat.message', {
+            userMessage: options.userMessage,
+            systemPrompt: options.systemPrompt,
+            temperature: options.temperature || 0.7,
+            maxTokens: options.maxTokens || 150
+          }, (response: any) => {
+            if (response.error) {
+              reject(new Error(response.error));
+              return;
+            }
+
+            resolve({
+              aiResponse: response.response || ''
+            });
+          });
         });
       },
 
