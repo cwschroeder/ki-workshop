@@ -129,7 +129,7 @@ Verifizieren:
 claude --version
 ```
 
-**Hinweis:** Sie benötigen eine Claude Pro/Max Subscription oder Anthropic API Key.
+**Hinweis:** Der API Key wird im Workshop bereitgestellt.
 
 ---
 
@@ -231,7 +231,7 @@ Verifizieren:
 claude --version
 ```
 
-**Hinweis:** Sie benötigen eine Claude Pro/Max Subscription oder Anthropic API Key.
+**Hinweis:** Der API Key wird im Workshop bereitgestellt.
 
 #### 6. Windows Terminal installieren (Empfohlen)
 
