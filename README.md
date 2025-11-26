@@ -48,7 +48,22 @@ Homebrew ist der Paketmanager für macOS. Öffnen Sie das **Terminal** und führ
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-#### 2. Git installieren
+**Wichtig:** Nach der Installation müssen Sie Homebrew zum PATH hinzufügen:
+
+```bash
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+#### 2. GNU Command Line Tools installieren (für Claude Code)
+
+Claude Code nutzt Unix-Tools wie `grep`, `find`, `sed`. Installieren Sie die GNU-Versionen:
+
+```bash
+brew install coreutils findutils gnu-sed gawk
+```
+
+#### 3. Git installieren
 
 ```bash
 brew install git
@@ -60,7 +75,7 @@ git --version
 # Erwartete Ausgabe: git version 2.x.x
 ```
 
-#### 3. Node.js 20+ installieren
+#### 4. Node.js 20+ installieren
 
 ```bash
 brew install node@20
@@ -82,7 +97,7 @@ npm --version
 # Erwartete Ausgabe: 10.x.x oder höher
 ```
 
-#### 4. Visual Studio Code installieren
+#### 5. Visual Studio Code installieren
 
 ```bash
 brew install --cask visual-studio-code
@@ -90,7 +105,7 @@ brew install --cask visual-studio-code
 
 Oder manuell von: https://code.visualstudio.com/download
 
-#### 5. VS Code Extensions installieren
+#### 6. VS Code Extensions installieren
 
 Öffnen Sie VS Code und installieren Sie diese Extensions (Cmd+Shift+X):
 
@@ -105,7 +120,7 @@ code --install-extension dbaeumer.vscode-eslint
 code --install-extension esbenp.prettier-vscode
 ```
 
-#### 6. Claude Code installieren (Empfohlen)
+#### 7. Claude Code installieren (Empfohlen)
 
 Claude Code ermöglicht KI-gestütztes Coding direkt im Terminal.
 
@@ -239,6 +254,31 @@ Windows Terminal bietet eine bessere Terminal-Erfahrung:
 
 ```powershell
 winget install Microsoft.WindowsTerminal
+```
+
+#### 7. GNU Command Line Tools (für Claude Code)
+
+Claude Code nutzt Unix-Tools wie `grep`, `find`, `sed`. Unter Windows gibt es zwei Optionen:
+
+**Option A: Git Bash verwenden (Empfohlen)**
+
+Git Bash (aus der Git-Installation in Schritt 1) bringt bereits die wichtigsten Unix-Tools mit. Stellen Sie sicher, dass Sie **Git Bash** als Terminal für Claude Code verwenden:
+
+1. Öffnen Sie Windows Terminal
+2. Klicken Sie auf den Dropdown-Pfeil neben dem Tab
+3. Wählen Sie "Git Bash" als Standard-Profil
+
+**Option B: Scoop für zusätzliche Tools (Optional)**
+
+Falls Sie mehr Unix-Tools benötigen, installieren Sie Scoop:
+
+```powershell
+# Scoop installieren (PowerShell als Administrator)
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+irm get.scoop.sh | iex
+
+# GNU Tools installieren
+scoop install coreutils findutils grep sed gawk
 ```
 
 ---
