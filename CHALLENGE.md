@@ -17,6 +17,8 @@ Lies die Dateien:
 - lib/ivu-voice-client.ts (SDK)
 - tests/10-chat-api.ts (Beispiel für chat() API)
 - workshop-data/customers.csv (Kundendaten)
+- workshop-data/meter-readings.csv (Zählerablesedatan)
+- workshop-data/transcription.csv (Transkription)
 
 Erstelle einen Bot in src/meter-reading-bot.ts der:
 1. Den Anrufer begrüßt
