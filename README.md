@@ -83,7 +83,18 @@ brew install node@20
 
 Oder mit Node Version Manager (nvm) für mehrere Node-Versionen:
 ```bash
+# nvm installieren
 brew install nvm
+
+# NVM-Verzeichnis erstellen
+mkdir ~/.nvm
+
+# Folgendes zu ~/.zshrc hinzufügen (dann Terminal neu starten):
+echo 'export NVM_DIR="$HOME/.nvm"
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"
+[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"' >> ~/.zshrc
+
+# Terminal neu starten, dann:
 nvm install 20
 nvm use 20
 ```
