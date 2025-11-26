@@ -5,7 +5,7 @@ Voice-Bot Workshop mit der IVU Voice API. Teilnehmer lernen, Voice-Anwendungen z
 
 ## Wichtige Dateien
 - `lib/ivu-voice-client.ts` - IVU Voice Client SDK (NICHT ÄNDERN)
-- `tests/` - Nummerierte Test-Skripte (01-13)
+- `tests/` - Nummerierte Test-Skripte (01-14)
 - `workshop-data/` - CSV-Daten (customers.csv, meter-readings.csv)
 
 ## API-Kurzreferenz
@@ -26,6 +26,7 @@ await session.assignPhoneNumber(process.env.PHONE_NUMBER);
 
 ### Call-Handle Methoden (bei eingehendem Anruf)
 - `call.say(text)` - Text sprechen
+- `call.prompt(text, { timeout? })` - Text sprechen UND Spracheingabe sammeln (EMPFOHLEN für mehrstufige Flows)
 - `call.collectSpeech({ prompt?, timeout? })` - Spracheingabe sammeln
 - `call.collectDigits({ maxDigits, prompt? })` - DTMF-Eingabe sammeln
 - `call.hangup(message?)` - Anruf beenden
@@ -39,3 +40,19 @@ await session.assignPhoneNumber(process.env.PHONE_NUMBER);
 - Fehlerbehandlung mit try/catch
 - process.exit(0) am Ende
 - Niemals lib/ivu-voice-client.ts ändern
+
+## Workshop-Aufgabe: Zählerstandserfassung
+
+### Anforderungen
+Erstelle `tests/14-meter-reading.ts` - einen Voice-Bot für Zählerstandserfassung:
+
+1. **Kundennummer abfragen** → gegen `customers.csv` validieren
+2. **Zählernummer abfragen** → muss zum Kunden passen
+3. **Zählerstand abfragen** → Bestätigung (Ja/Nein) einholen
+4. **Speichern** in `meter-readings.csv`
+
+### Technische Hinweise
+- Nutze `call.prompt()` für jeden Abfrageschritt (verhindert Race Conditions)
+- Nutze `session.chat()` mit KI-Prompt um Zahlen aus Sprache zu extrahieren
+- Maximal 3 Versuche pro Schritt
+- Test-Kunden: 12345 (Zähler 789456), 23456 (Zähler 456123), 34567 (Zähler 123789)

@@ -69,12 +69,21 @@ export interface CallHandle {
     meterNumber?: string;
     reading?: number;
   }>;
+
+  /** Atomar: Text sprechen und Spracheingabe sammeln (verhindert Race Conditions) */
+  prompt(text: string, options?: { timeout?: number }): Promise<string>;
 }
 
 export class VoiceSession extends EventEmitter {
   private socket: Socket | null = null;
   private sessionId: string | null = null;
   private serverUrl: string;
+
+  // Event gating state to prevent race conditions
+  private _waitingForInput: boolean = false;
+  private _inputResolver: ((value: string) => void) | null = null;
+  private _inputSequence: number = 0;  // Incremented each time we start waiting
+  private _lastProcessedInput: string = '';  // Track last input to dedupe
 
   constructor(options: VoiceSessionOptions = {}) {
     super();
@@ -113,6 +122,22 @@ export class VoiceSession extends EventEmitter {
 
       this.socket.on('call.user_input', (data: any) => {
         console.log(`💬 Benutzereingabe: ${data.input}`);
+        // Only process input if we're actively waiting for it (prevents race conditions)
+        if (this._waitingForInput && this._inputResolver) {
+          // Check for duplicate input (server sometimes sends same event twice)
+          if (data.input === this._lastProcessedInput) {
+            console.log(`   ⚠️ Duplikat verworfen: "${data.input}"`);
+            return;
+          }
+          console.log(`   ✅ Input akzeptiert (aktiv wartend)`);
+          this._lastProcessedInput = data.input;
+          this._waitingForInput = false;
+          const resolver = this._inputResolver;
+          this._inputResolver = null;
+          resolver(data.input);
+        } else {
+          console.log(`   ⚠️ Input verworfen (nicht aktiv wartend)`);
+        }
         this.emit('call.user_input', data.input);
       });
 
@@ -371,20 +396,34 @@ export class VoiceSession extends EventEmitter {
       },
 
       collectSpeech: async (options = {}) => {
+        // Clear any stale state before starting
+        this._waitingForInput = false;
+        this._inputResolver = null;
+
         await this.sendAction({
           type: 'collect_speech',
           language: 'de-DE',
           ...options
         });
+
+        // Now set up to receive input with gating
         return new Promise<string>((resolve) => {
-          this.once('call.user_input', resolve);
+          this._waitingForInput = true;
+          this._inputResolver = resolve;
         });
       },
 
       collectDigits: async (options) => {
+        // Clear any stale state before starting
+        this._waitingForInput = false;
+        this._inputResolver = null;
+
         await this.sendAction({ type: 'collect_digits', ...options });
+
+        // Now set up to receive input with gating
         return new Promise<string>((resolve) => {
-          this.once('call.user_input', resolve);
+          this._waitingForInput = true;
+          this._inputResolver = resolve;
         });
       },
 
@@ -461,6 +500,29 @@ export class VoiceSession extends EventEmitter {
           this.socket?.emit('extract.info', { text }, (response: any) => {
             resolve(response || {});
           });
+        });
+      },
+
+      prompt: async (text: string, options = {}) => {
+        // Clear any stale state before starting - reject any pending input
+        this._waitingForInput = false;
+        this._inputResolver = null;
+        this._inputSequence++;
+
+        // First say the prompt text (while NOT accepting any input)
+        await this.sendAction({ type: 'say', text });
+
+        // Send collect_speech action and WAIT for server acknowledgment
+        await this.sendAction({
+          type: 'collect_speech',
+          language: 'de-DE',
+          ...options
+        });
+
+        // NOW we start accepting input - after server has confirmed collect_speech
+        return new Promise<string>((resolve) => {
+          this._waitingForInput = true;
+          this._inputResolver = resolve;
         });
       }
     };
