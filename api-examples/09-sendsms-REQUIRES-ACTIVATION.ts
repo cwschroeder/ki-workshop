@@ -19,7 +19,7 @@
  */
 
 import 'dotenv/config';
-import { createVoiceSession } from '../lib/ivu-voice-client';
+import { createVoiceSession } from './lib/ivu-voice-client';
 
 async function main() {
   console.log('=== IVU Voice API SMS API Test ===\n');

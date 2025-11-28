@@ -1,14 +1,35 @@
 /**
- * Test Client - Speech Recognition Only
+ * Test Client - BRIDGE (Call Transfer)
  *
- * Tests collectSpeech (ASR) without COLLECT_DIGITS
+ * Tests call transfer functionality with BRIDGE block to SIP users.
+ *
+ * Bridge Modes:
+ * - SEQUENTIAL: Try destinations one after another until one answers
+ *   Use case: Try primary contact first, then fallback to secondary
+ *
+ * - PARALLEL: Ring all destinations simultaneously (first to answer wins)
+ *   Use case: Ring entire team at once, whoever picks up first gets the call
+ *
+ * Multiple Destinations Example:
+ *
+ * SEQUENTIAL (one after another):
+ *   destinations: [
+ *     { destination: 'alice', destinationType: 'SIP_USER', timeout: 20 },
+ *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 20 }
+ *   ]
+ *
+ * PARALLEL (all at once):
+ *   destinations: [
+ *     { destination: 'alice', destinationType: 'SIP_USER', timeout: 30 },
+ *     { destination: 'bob', destinationType: 'SIP_USER', timeout: 30 }
+ *   ]
  */
 
 import 'dotenv/config';
-import { createVoiceSession } from '../lib/ivu-voice-client';
+import { createVoiceSession } from './lib/ivu-voice-client';
 
 async function main() {
-  console.log('🧪 IVU Voice API - Speech Recognition Test\n');
+  console.log('🧪 IVU Voice API - Call Transfer Test\n');
   console.log('='.repeat(60));
 
   try {
@@ -34,13 +55,12 @@ async function main() {
     console.log('✅ Telefonnummer zugewiesen:', phoneNumber);
 
     console.log('\n' + '='.repeat(60));
-    console.log('🎉 Sprach-Test-Client bereit!');
+    console.log('🎉 Transfer-Test-Client bereit!');
     console.log('='.repeat(60));
     console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
     console.log('\n📋 Test-Ablauf:');
     console.log('   1. Willkommensnachricht');
-    console.log('   2. Spracheingabe (sagen Sie Ihren Namen)');
-    console.log('   3. Bestätigung & Auflegen\n');
+    console.log('   2. Weiterleitung zu SIP-Benutzer "cwschroeder"\n');
     console.log('⏳ Warte auf Anrufe...\n');
 
     session.on('call.incoming', async (call) => {
@@ -52,28 +72,22 @@ async function main() {
       console.log('   Zeit:', new Date().toLocaleString('de-DE'));
 
       try {
-        console.log('\n▶️  Starte Sprach-Test...\n');
+        console.log('\n▶️  Starte Transfer-Test...\n');
 
-        // Test: Say + collectSpeech (ASR)
-        console.log('   [Test] Spracherkennung...');
-        await call.say('Willkommen zum Sprach-Test.');
-        await call.say('Bitte nennen Sie Ihren Namen.');
+        // Welcome and transfer
+        console.log('   [Test] Begrüßung...');
+        await call.say('Willkommen zum Transfer-Test. Sie werden jetzt zu einem SIP-Benutzer weitergeleitet.');
 
-        const speech = await call.collectSpeech({
-          language: 'de-DE',       // Required: Language code (e.g., 'de-DE', 'en-US')
-          timeout: 5              // Optional: Timeout in seconds (default: 10)
-          // maxTries: 2,          // Optional: Maximum number of tries (default: 2)
-          // prompt: 'Sprechen Sie jetzt'  // Optional: Custom prompt text
+        console.log('   [Transfer] Verbinde mit SIP-Benutzer "cwschroeder"...');
+        await call.bridge('cwschroeder', {
+          destinationType: 'SIP_USER',    // SIP_USER für Weiterleitung an SIP-Account
+          timeout: 30,                     // Optional: Timeout in Sekunden (default: 30)
+          // bridgeMode: 'SEQUENTIAL'      // Optional: 'SEQUENTIAL' oder 'PARALLEL' (default: SEQUENTIAL)
+          //                               // SEQUENTIAL: Ziele nacheinander anrufen
+          //                               // PARALLEL: Alle Ziele gleichzeitig anrufen
         });
 
-        console.log('   ✅ Benutzer sagte:', speech);
-
-        // Respond with recognition result
-        await call.say(`Vielen Dank, ${speech || 'unbekannter Name'}.`);
-        await call.say('Test erfolgreich abgeschlossen.');
-        await call.hangup('Auf Wiedersehen!');
-
-        console.log('\n✅ Test erfolgreich abgeschlossen!\n');
+        console.log('\n✅ Transfer-Test abgeschlossen!\n');
         console.log('='.repeat(60));
         console.log('💡 Rufen Sie erneut an oder drücken Sie Ctrl+C zum Beenden');
         console.log('='.repeat(60) + '\n');

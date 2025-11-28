@@ -10,7 +10,7 @@
  */
 
 import 'dotenv/config';
-import { createVoiceSession, CallHandle, VoiceSession } from '../lib/ivu-voice-client';
+import { createVoiceSession, CallHandle, VoiceSession } from './lib/ivu-voice-client';
 
 // Prompt für KI-Extraktion von Zahlen aus Sprache
 const NUMBER_EXTRACTION_PROMPT = `Du bist ein Assistent der Zahlen aus gesprochener Sprache extrahiert.

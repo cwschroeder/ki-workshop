@@ -1,35 +1,14 @@
 /**
- * Test Client - ANNOUNCEMENT (Pre-recorded Audio)
+ * Test Client - DTMF (Digit Collection) Only
  *
- * Tests playback of pre-configured audio files from IVU Voice API portal.
- *
- * IMPORTANT: Announcements must be uploaded and configured in the API portal first.
- *
- * How to configure announcements:
- * 1. Log in to API portal
- * 2. Navigate to "Announcements" section
- * 3. Upload audio file (WAV, MP3, etc.)
- * 4. Give it a unique name (e.g., "IVU_WELCOME", "IVU_MENU", "IVU_HOLD_MUSIC")
- * 5. Use that name in call.playAnnouncement()
- *
- * Common use cases:
- * - Welcome messages: Professional greeting in high quality
- * - IVR menus: "Press 1 for sales, 2 for support..."
- * - Hold music: While transferring or waiting
- * - Custom prompts: Specific instructions for callers
- *
- * Advantages over TTS (SAY):
- * - Higher audio quality (professional recordings)
- * - Consistent voice/branding
- * - Faster playback (no TTS processing)
- * - Support for music/sound effects
+ * Tests collectDigits with different announcements based on user choice
  */
 
 import 'dotenv/config';
-import { createVoiceSession } from '../lib/ivu-voice-client';
+import { createVoiceSession } from './lib/ivu-voice-client';
 
 async function main() {
-  console.log('🧪 IVU Voice API - Announcement Test\n');
+  console.log('🧪 IVU Voice API - DTMF Test\n');
   console.log('='.repeat(60));
 
   try {
@@ -55,13 +34,14 @@ async function main() {
     console.log('✅ Telefonnummer zugewiesen:', phoneNumber);
 
     console.log('\n' + '='.repeat(60));
-    console.log('🎉 Ansage-Test-Client bereit!');
+    console.log('🎉 DTMF-Test-Client bereit!');
     console.log('='.repeat(60));
     console.log('\n💡 Rufen Sie jetzt an:', phoneNumber);
     console.log('\n📋 Test-Ablauf:');
-    console.log('   1. Spiele voraufgezeichnete Willkommensansage ab');
-    console.log('   2. DTMF-Menü zur Auswahl verschiedener Ansagen');
-    console.log('   3. Spiele ausgewählte Ansage ab\n');
+    console.log('   1. Willkommensnachricht');
+    console.log('   2. Aufforderung 1 (Deutsch) oder 2 (Englisch) zu drücken');
+    console.log('   3. DTMF-Eingabe mit sprachspezifischer Ansage');
+    console.log('   4. Bestätigung & Auflegen\n');
     console.log('⏳ Warte auf Anrufe...\n');
 
     session.on('call.incoming', async (call) => {
@@ -73,42 +53,65 @@ async function main() {
       console.log('   Zeit:', new Date().toLocaleString('de-DE'));
 
       try {
-        console.log('\n▶️  Starte Ansage-Test...\n');
+        console.log('\n▶️  Starte DTMF-Test...\n');
 
-        // Play welcome announcement
-        console.log('   [Test] Spiele Willkommensansage ab...');
-        await call.playAnnouncement('IVU_TEST_1');
-
-        // Menu for selecting announcements
-        console.log('   [Test] Ansage-Menü...');
-        await call.say('Drücken Sie 1 für eine weitere Testansage, 2 um zu beenden.');
+        // Welcome and language selection
+        console.log('   [Test] DTMF-Sprachauswahl...');
+        await call.say('Willkommen zum DTMF-Test.');
+        await call.say('Drücken Sie die 1 für Deutsch oder die 2 für Englisch.');
 
         const choice = await call.collectDigits({
-          maxDigits: 1,
-          announcementName: 'IVU_TEST_1',
-          errorAnnouncementName: 'IVU_TEST_1'
+          maxDigits: 1,                         // Required: Maximum digits to collect
+          announcementName: 'IVU_TEST_1',       // Required: Announcement name
+          errorAnnouncementName: 'IVU_TEST_1'   // Required: Error announcement name
+          // minDigits: 1,                      // Optional: Minimum digits (default: 1)
+          // timeout: 10,                       // Optional: Timeout in seconds (default: 10)
+          // allowSpeech: false,                // Optional: Enable speech input (default: false)
+          // speechLanguage: 'de-DE'            // Optional: Language for speech (if allowSpeech: true)
         });
 
         console.log('   ✅ Benutzer drückte:', choice);
 
+        // Respond based on language choice with appropriate announcement
         if (choice === '1') {
-          // Play another announcement
-          console.log('   [Test] Spiele zweite Ansage ab...');
-          await call.playAnnouncement('IVU_TEST_1');
-          await call.say('Das war die zweite Testansage.');
-          await call.hangup('Auf Wiedersehen.');
+          await call.say('Sie haben Deutsch gewählt.');
+          await call.say('Bitte geben Sie eine 3-stellige Zahl ein.');
+
+          const germanInput = await call.collectDigits({
+            maxDigits: 3,
+            announcementName: 'IVU_TEST_1',
+            errorAnnouncementName: 'IVU_TEST_1'
+            // minDigits: 1,
+            // timeout: 10
+          });
+
+          console.log('   ✅ Deutsche Eingabe:', germanInput);
+          await call.say(`Sie haben ${germanInput} eingegeben. Vielen Dank.`);
 
         } else if (choice === '2') {
-          // End call
-          await call.hangup('Vielen Dank für Ihren Anruf. Auf Wiedersehen.');
+          await call.say('You selected English.');
+          await call.say('Please enter a 3-digit number.');
+
+          const englishInput = await call.collectDigits({
+            maxDigits: 3,
+            announcementName: 'IVU_TEST_EN_1',
+            errorAnnouncementName: 'IVU_TEST_EN_1'
+            // minDigits: 1,
+            // timeout: 10
+          });
+
+          console.log('   ✅ Englische Eingabe:', englishInput);
+          await call.say(`You entered ${englishInput}. Thank you.`);
 
         } else {
-          // Invalid input
-          await call.say('Ungültige Eingabe.');
-          await call.hangup('Auf Wiedersehen.');
+          await call.say('Ungültige Eingabe. Invalid input.');
         }
 
-        console.log('\n✅ Ansage-Test abgeschlossen!\n');
+        // End call
+        await call.say('Test abgeschlossen. Test completed.');
+        await call.hangup('Auf Wiedersehen. Goodbye.');
+
+        console.log('\n✅ Test erfolgreich abgeschlossen!\n');
         console.log('='.repeat(60));
         console.log('💡 Rufen Sie erneut an oder drücken Sie Ctrl+C zum Beenden');
         console.log('='.repeat(60) + '\n');

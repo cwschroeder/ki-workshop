@@ -67,7 +67,7 @@
  */
 
 import 'dotenv/config';
-import { createVoiceSession } from '../lib/ivu-voice-client';
+import { createVoiceSession } from './lib/ivu-voice-client';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 

@@ -363,7 +363,7 @@ export class VoiceSession extends EventEmitter {
 
   /** Kunde in CSV nachschlagen */
   async lookupCustomer(customerNumber: string): Promise<any> {
-    const csvPath = path.join(__dirname, '../workshop-data/customers.csv');
+    const csvPath = path.join(__dirname, '../data/customers.csv');
     const content = await fs.readFile(csvPath, 'utf-8');
     const records = parse(content, { columns: true, skip_empty_lines: true });
 
@@ -376,7 +376,7 @@ export class VoiceSession extends EventEmitter {
     meterNumber: string;
     reading: number;
   }): Promise<void> {
-    const csvPath = path.join(__dirname, '../workshop-data/meter-readings.csv');
+    const csvPath = path.join(__dirname, '../data/meter-readings.csv');
     const timestamp = new Date();
 
     const line = `\n${data.customerNumber},${data.meterNumber},${data.reading},${timestamp.toISOString().split('T')[0]},${timestamp.toTimeString().split(' ')[0]},call_${Date.now()},workshop`;
